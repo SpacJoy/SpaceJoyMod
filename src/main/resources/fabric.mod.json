@@ -11,6 +11,7 @@
   "entrypoints": {
     "main": ["net.spacejoy.mod.SpaceJoyMod"],
     "client": [
+      "net.spacejoy.mod.client.SpaceJoyClient",
       "net.spacejoy.mod.irisdim.IrisDimClient",
       "net.spacejoy.mod.client.SpaceJoyKeys"
     ],

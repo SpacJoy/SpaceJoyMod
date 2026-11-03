@@ -57,6 +57,11 @@
   "spacejoy_mod.config.missing.polymer": "没装 polymer-core，配方修复没有可修补的对象。",
   "spacejoy_mod.config.mobLabel": "给带能力的生物加头顶标签",
   "spacejoy_mod.config.mobLabel.tip": "在带能力掉落的生物头顶显示它能掉什么，和命名牌一样走原版渲染，隔着方块自然被挡住。生物已经有自定义名时，标签自动挪到名字上面一行。纯客户端。",
+  "spacejoy_mod.config.offhandTorchGuard": "副手火把保留",
+  "spacejoy_mod.config.offhandTorchGuard.tip": "副手那摞火把剩到保留数时，就不许再从副手放置，永远留一手照明。只认火把、灵魂火把、铜火把这类照明火把；红石火把不受影响。服务端也拦，改客户端绕不过去。",
+  "spacejoy_mod.config.offhandTorchKeepCount": "保留数量",
+  "spacejoy_mod.config.offhandTorchKeepCount.tip": "副手至少留下几支火把。0 等于不保留，也就是关掉这条限制；设成上限就等于副手永远不放火把。",
+  "spacejoy_mod.config.offhandTorchKeepCount.value": "留 %s 支",
   "spacejoy_mod.config.polymerRecipeFix": "polymer 配方编码修复",
   "spacejoy_mod.config.polymerRecipeFix.tip": "修掉让 TACZ 丢配方、JEI 合成页空掉的那个空指针。",
   "spacejoy_mod.config.tab.features": "功能",
@@ -172,6 +177,7 @@
   "spacejoy_mod.irisdim.status.unavailable": "无法访问 Iris 内部接口",
   "spacejoy_mod.irisdim.status.unsaved": "● 有未保存的修改",
   "spacejoy_mod.jade.mob_abilities": "可掉落能力",
+  "spacejoy_mod.offhand_torch.blocked": "副手火把只剩 %s 支，已保留",
   "spacejoy_mod.sodium.modName": "SpaceJoyMod",
   "spacejoy_mod.sodium.rules": "光影规则"
 }

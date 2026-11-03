@@ -57,6 +57,11 @@
   "spacejoy_mod.config.missing.polymer": "polymer-core is not installed, so the recipe fix has nothing to patch.",
   "spacejoy_mod.config.mobLabel": "Show ability labels above mobs",
   "spacejoy_mod.config.mobLabel.tip": "Show what a mob can drop above its head, rendered through the vanilla name tag path so blocks occlude it naturally. If the mob is already named, the label moves to the line above. Client side only.",
+  "spacejoy_mod.config.offhandTorchGuard": "Keep torches in the off hand",
+  "spacejoy_mod.config.offhandTorchGuard.tip": "Stop placing torches from the off hand once the stack is down to the keep count, so you never run out of light. Only light-emitting torches count (torch, soul torch, copper torch); redstone torches are untouched. The server blocks it too, so a modified client cannot bypass it.",
+  "spacejoy_mod.config.offhandTorchKeepCount": "Keep count",
+  "spacejoy_mod.config.offhandTorchKeepCount.tip": "How many torches the off hand must keep. 0 means keep none, which turns the limit off; the maximum means the off hand never places a torch.",
+  "spacejoy_mod.config.offhandTorchKeepCount.value": "Keep %s",
   "spacejoy_mod.config.polymerRecipeFix": "Polymer recipe encoding fix",
   "spacejoy_mod.config.polymerRecipeFix.tip": "Fix the null pointer that made TACZ lose recipes and left JEI crafting pages empty.",
   "spacejoy_mod.config.tab.features": "Features",
@@ -172,6 +177,7 @@
   "spacejoy_mod.irisdim.status.unavailable": "internals not reachable",
   "spacejoy_mod.irisdim.status.unsaved": "● unsaved changes",
   "spacejoy_mod.jade.mob_abilities": "Droppable abilities",
+  "spacejoy_mod.offhand_torch.blocked": "Off-hand torches down to %s, kept",
   "spacejoy_mod.sodium.modName": "SpaceJoyMod",
   "spacejoy_mod.sodium.rules": "Shader rules"
 }

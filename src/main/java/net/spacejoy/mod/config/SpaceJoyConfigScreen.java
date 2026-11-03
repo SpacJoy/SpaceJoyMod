@@ -128,6 +128,24 @@ public final class SpaceJoyConfigScreen {
                 .setTooltip(tooltip(K + "mobLabel.tip", ea, "Everlasting Abilities"))
                 .build(), ea));
 
+        // 副手火把保留：不依赖任何前置模组，原版火把就能用，所以不置灰。
+        category.addEntry(eb.startBooleanToggle(
+                        Component.translatable(K + "offhandTorchGuard"),
+                        SpaceJoyConfig.isOffhandTorchGuard())
+                .setDefaultValue(true)
+                .setSaveConsumer(SpaceJoyConfig::setOffhandTorchGuard)
+                .setTooltip(Component.translatable(K + "offhandTorchGuard.tip"))
+                .build());
+
+        category.addEntry(eb.startIntSlider(
+                        Component.translatable(K + "offhandTorchKeepCount"),
+                        SpaceJoyConfig.getOffhandTorchKeepCount(), 0, SpaceJoyConfig.MAX_TORCH_KEEP)
+                .setDefaultValue(SpaceJoyConfig.DEFAULT_TORCH_KEEP)
+                .setTextGetter(v -> Component.translatable(K + "offhandTorchKeepCount.value", v))
+                .setSaveConsumer(SpaceJoyConfig::setOffhandTorchKeepCount)
+                .setTooltip(Component.translatable(K + "offhandTorchKeepCount.tip"))
+                .build());
+
         if (!ea) {
             category.addEntry(note(eb, K + "missing.everlastingabilities"));
         }

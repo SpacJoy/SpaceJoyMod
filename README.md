@@ -16,6 +16,7 @@
 | 补齐 Iris 的描边管线映射 | Iris | 把 `OUTLINE_CULL` / `OUTLINE_NO_CULL` 补进 Iris 的管线表，并静音 `entity_outline` 后处理链的假报错（原版发光效果本身要用） |
 | Jade 显示可掉落能力 | Jade + Everlasting Abilities | 准星指着生物时多一行「可掉落能力」 |
 | 标记带能力的生物 | Everlasting Abilities | 在带能力掉落的生物头顶显示它能掉什么，走原版命名牌渲染，遮挡与光影天然正确 |
+| 副手火把保留 | 无 | 副手那摞火把剩到保留数（默认 1 支）就不再从副手放置，永远留得住最后几支照明；红石火把不受影响 |
 | 按维度切换光影 | Iris | 进维度时按规则换光影包，规则用内置的编辑器改 |
 
 全部开关在 ModMenu 的配置界面里，分「通用 / 修复 / 功能 / 维度光影」四页。装了 Sodium 的话，视频设置里还会多出一行 **SpaceJoyMod → 光影规则**，点进去就是规则编辑器。
@@ -117,7 +118,7 @@ if (renderPipeline.getLocation().getNamespace().equals("minecraft")) {
 
 ## 配置文件
 
-- `config/spacejoy-mod.json` —— 七个开关（总开关、日志、两项修复、两项功能、维度光影；`irisOutlineFix` 与 `polymerRecipeFix` 在「修复」页，其中 `irisOutlineFix` **默认关闭**）
+- `config/spacejoy-mod.json` —— 全部开关（总开关、日志、两项修复、三项功能、维度光影；`irisOutlineFix` 与 `polymerRecipeFix` 在「修复」页，其中 `irisOutlineFix` **默认关闭**）
 - `config/spacejoy-mod/irisdim/config.json` —— 维度光影的规则列表（界面上也能改）
 - `config/spacejoy-mod/irisdim/discovered.json` —— 进过的维度，带可粘贴的规则模板
 

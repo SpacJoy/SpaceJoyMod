@@ -39,6 +39,14 @@ public final class SpaceJoyConfig {
     private static boolean eliteAbilityDrop = true;
     private static String eliteAbilityMinRarity = "RARE";
 
+    /** 副手火把保留数的默认值：留最后一支。 */
+    public static final int DEFAULT_TORCH_KEEP = 1;
+    /** 保留数上限。再高就等于「副手永远不放火把」，不如直接关掉功能。 */
+    public static final int MAX_TORCH_KEEP = 16;
+
+    private static boolean offhandTorchGuard = true;
+    private static int offhandTorchKeepCount = DEFAULT_TORCH_KEEP;
+
     private SpaceJoyConfig() {
     }
 
@@ -64,6 +72,8 @@ public final class SpaceJoyConfig {
             irisDimensionShaders = readBool(root, "irisDimensionShaders", irisDimensionShaders);
             eliteAbilityDrop = readBool(root, "eliteAbilityDrop", eliteAbilityDrop);
             eliteAbilityMinRarity = readString(root, "eliteAbilityMinRarity", eliteAbilityMinRarity);
+            offhandTorchGuard = readBool(root, "offhandTorchGuard", offhandTorchGuard);
+            offhandTorchKeepCount = clampKeep(readInt(root, "offhandTorchKeepCount", offhandTorchKeepCount));
         } catch (Exception e) {
             // 配置文件坏了就退回默认值，不要让模组起不来。
             SpaceJoyMod.LOGGER.warn("spacejoy-mod config unreadable, using defaults", e);
@@ -82,6 +92,8 @@ public final class SpaceJoyConfig {
         root.addProperty("irisDimensionShaders", irisDimensionShaders);
         root.addProperty("eliteAbilityDrop", eliteAbilityDrop);
         root.addProperty("eliteAbilityMinRarity", eliteAbilityMinRarity);
+        root.addProperty("offhandTorchGuard", offhandTorchGuard);
+        root.addProperty("offhandTorchKeepCount", offhandTorchKeepCount);
         try {
             Files.createDirectories(path().getParent());
             Files.writeString(path(), GSON.toJson(root));
@@ -100,6 +112,23 @@ public final class SpaceJoyConfig {
 
     private static String readString(JsonObject root, String key, String fallback) {
         return root.has(key) && root.get(key).isJsonPrimitive() ? root.get(key).getAsString() : fallback;
+    }
+
+    private static int readInt(JsonObject root, String key, int fallback) {
+        if (!root.has(key) || !root.get(key).isJsonPrimitive()) {
+            return fallback;
+        }
+        try {
+            return root.get(key).getAsInt();
+        } catch (RuntimeException e) {
+            // 手改成 "abc" 之类的就退回默认值，不让整个配置读失败。
+            return fallback;
+        }
+    }
+
+    /** 保留数夹到合法区间：负数按 0（等于关掉限制），超过上限按上限。 */
+    private static int clampKeep(int value) {
+        return Math.max(0, Math.min(MAX_TORCH_KEEP, value));
     }
 
     private static void ensureLoaded() {
@@ -200,6 +229,28 @@ public final class SpaceJoyConfig {
     public static void setEliteAbilityDrop(boolean value) {
         ensureLoaded();
         eliteAbilityDrop = value;
+    }
+
+    /** 副手火把保护：副手火把数量降到保留数就不再从副手放置。 */
+    public static boolean isOffhandTorchGuard() {
+        ensureLoaded();
+        return offhandTorchGuard;
+    }
+
+    public static void setOffhandTorchGuard(boolean value) {
+        ensureLoaded();
+        offhandTorchGuard = value;
+    }
+
+    /** 副手至少要留下的火把数；0 表示不保留（等于关掉这条限制）。 */
+    public static int getOffhandTorchKeepCount() {
+        ensureLoaded();
+        return offhandTorchKeepCount;
+    }
+
+    public static void setOffhandTorchKeepCount(int value) {
+        ensureLoaded();
+        offhandTorchKeepCount = clampKeep(value);
     }
 
     /** 精英掉落的最低稀有度，存名字（COMMON / UNCOMMON / RARE / EPIC），读的时候再解析。 */
