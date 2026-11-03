@@ -1,0 +1,17 @@
+# Gradle
+.gradle/
+build/
+
+# 第三方模组 jar：构建时从实例 mods 目录同步，仅用于编译
+libs/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+out/
+
+# 系统
+Thumbs.db
+desktop.ini
+*.log

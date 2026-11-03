@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "id": "spacejoy_mod",
+  "version": "${version}",
+  "name": "SpaceJoyMod",
+  "description": "整合包兼容性修复与便利功能的集合：polymer 配方编码修复（JEI 合成页空掉 / TACZ 配方丢失的根因）、Jade 显示生物可掉落的能力、给带能力的生物加头顶标签（走原版命名牌渲染，天然处理遮挡与光影）、BuffMobs 精英生物必掉高稀有度能力图腾、补齐 Iris 漏掉的描边管线映射、按维度切换 Iris 光影包。每一项都能在 ModMenu 配置界面单独开关；缺哪个前置，对应功能会自动禁用并在界面上置灰说明。",
+  "authors": ["SpaceJoy"],
+  "license": "MIT",
+  "icon": "assets/spacejoy_mod/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["net.spacejoy.mod.SpaceJoyMod"],
+    "client": [
+      "net.spacejoy.mod.irisdim.IrisDimClient",
+      "net.spacejoy.mod.client.SpaceJoyKeys"
+    ],
+    "jade": ["net.spacejoy.mod.jade.MobAbilityJadePlugin"],
+    "modmenu": ["net.spacejoy.mod.modmenu.ModMenuIntegration"],
+    "sodium:config_api_user": ["net.spacejoy.mod.irisdim.compat.sodium.SodiumConfigEntrypoint"]
+  },
+  "mixins": [
+    "spacejoy_mod.mixins.json",
+    {
+      "config": "spacejoy_mod.client.mixins.json",
+      "environment": "client"
+    },
+    {
+      "config": "spacejoy_mod.compat.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "polymer-core": "*",
+    "jade": "*",
+    "everlastingabilities": "*",
+    "buffmobs": "*",
+    "iris": "*",
+    "cloth-config": "*",
+    "modmenu": "*",
+    "sodium": "*"
+  }
+}

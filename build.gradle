@@ -1,0 +1,370 @@
+plugins {
+    // 26.x 线用原生 loom（无 remap 后缀）。
+    id 'net.fabricmc.fabric-loom' version "1.17.21"
+    id 'maven-publish'
+}
+
+group = "net.spacejoy.mod"
+// 版本号统一由 gradle.properties 的 version 决定，避免两处写死对不上。
+
+// 实例 mods 目录：软依赖 jar 从这里取，安装产物也回到这里。
+def instanceMods = (findProperty('instanceMods') ?:
+    'D:/Otheapps/Minecraft/.minecraft/versions/26.3-Fabric/mods') as String
+
+// Jade / Everlasting Abilities 只用于编译：从实例 mods 目录同步到 libs/，不提交进仓库。
+// 运行时缺失也能正常加载（fabric.mod.json 里是 suggests，代码里用 ModLoaded 判断）。
+tasks.register('syncLibs', Copy) {
+    from(instanceMods) {
+        include 'Jade-*.jar'
+        include '*everlastingabilities*.jar'
+        include 'cyclopscore-*.jar'
+        include 'cloth-config-*.jar'
+        include 'modmenu-*.jar'
+        include 'sodium-fabric-*.jar'
+        include 'buffmobs-*.jar'
+        // Iris / JEI 只用于编译兜底 mixin：前者缺 outline 渲染管线映射，
+        // 后者的 addIngredientsAtRuntime 会对空集合抛异常（源头在 polymer）。
+        include 'iris-fabric-*.jar'
+        include '*jei-26.3-fabric*.jar'
+        rename { String name ->
+            if (name.startsWith('Jade-')) return 'jade.jar'
+            if (name.contains('everlastingabilities')) return 'everlastingabilities.jar'
+            if (name.startsWith('cloth-config')) return 'cloth-config.jar'
+            if (name.startsWith('modmenu')) return 'modmenu.jar'
+            if (name.startsWith('sodium-fabric')) return 'sodium.jar'
+            if (name.startsWith('buffmobs-')) return 'buffmobs.jar'
+            if (name.startsWith('iris-fabric')) return 'iris.jar'
+            if (name.contains('jei-26.3-fabric')) return 'jei.jar'
+            return 'cyclopscore.jar'
+        }
+    }
+    into(layout.projectDirectory.dir('libs'))
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:26.3"
+    // 26.1 起 Minecraft 不再混淆，官方类名直接可用，因此没有映射声明。
+    implementation "net.fabricmc:fabric-loader:0.19.5"
+    implementation "net.fabricmc.fabric-api:fabric-api:0.161.0+26.3"
+
+    // EA 的 MOD 字段类型来自 CyclopsCore，所以 CyclopsCore 也必须参与编译。
+    // Cloth Config / ModMenu / Sodium 只用于编译，运行时缺失也不影响其它功能。
+    // Sodium 走普通文件依赖而不是 modImplementation：Loom 会拒绝它发布产物里的 Loom 版本戳
+    // （报 "Mod was built with a newer version of Loom"），而 compileOnly files(...) 不经过
+    // Loom 的 mod 元数据解析，能直接吃实例里的那个 jar。
+    compileOnly files('libs/jade.jar', 'libs/everlastingabilities.jar', 'libs/cyclopscore.jar',
+            'libs/cloth-config.jar', 'libs/modmenu.jar', 'libs/sodium.jar',
+            'libs/iris.jar', 'libs/jei.jar', 'libs/buffmobs.jar')
+}
+
+tasks.named('compileJava').configure {
+    dependsOn tasks.named('syncLibs')
+}
+
+processResources {
+    filesMatching('fabric.mod.json') {
+        expand "version": version
+    }
+}
+
+// 目标 Java 版本用 toolchain 声明，环境 JDK 低于目标时由 foojay 自动 provision。
+java {
+    withSourcesJar()
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+// 校验 mixin 目标：polymer-bundled 是元包，真正的类在 META-INF/jars 内嵌的 polymer-core jar 里。
+// 用法：./gradlew verifyPolymerTargets [-PpolymerJar="<path to polymer-bundled-*.jar>"]
+tasks.register('verifyPolymerTargets') {
+    doLast {
+        def jarPath = (findProperty('polymerJar') ?:
+            "${instanceMods}/polymer-bundled-0.18.6+26.3.jar") as String
+        def jarFile = new File(jarPath)
+        if (!jarFile.isFile()) {
+            throw new GradleException("polymer jar not found: ${jarPath}")
+        }
+        def targets = [
+            'eu/pb4/polymer/core/impl/interfaces/IngredientExtension$BaseStreamCodec.class',
+            'eu/pb4/polymer/core/impl/interfaces/IngredientExtension$OptionalStreamCodec.class'
+        ] as Set
+        def found = [] as Set
+        new java.util.zip.ZipFile(jarFile).withCloseable { outer ->
+            outer.entries().findAll {
+                it.name.startsWith('META-INF/jars/') && it.name.endsWith('.jar')
+            }.each { entry ->
+                byte[] bytes = outer.getInputStream(entry).bytes
+                new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(bytes)).withCloseable { zis ->
+                    java.util.zip.ZipEntry e
+                    while ((e = zis.getNextEntry()) != null) {
+                        if (e.name in targets) {
+                            found << e.name
+                        }
+                    }
+                }
+            }
+        }
+        targets.each { t -> println "${found.contains(t) ? 'OK  ' : 'MISS'} ${t}" }
+        def missing = targets - found
+        if (missing) {
+            throw new GradleException("mixin targets missing from ${jarPath}: ${missing}")
+        }
+    }
+}
+
+// 列出指定 jar 中匹配前缀的类，用于确认第三方 API 可用性。
+// 用法：./gradlew listJarClasses -Pjar=<path> -Pprefix=org/cyclops/everlastingabilities/api
+tasks.register('listJarClasses') {
+    doLast {
+        def jarPath = findProperty('jar') as String
+        def prefix = (findProperty('prefix') ?: '') as String
+        if (!jarPath) throw new GradleException('missing -Pjar=')
+        new java.util.zip.ZipFile(new File(jarPath)).withCloseable { zf ->
+            zf.entries().each {
+                if (it.name.endsWith('.class') && it.name.startsWith(prefix)) println "  ${it.name}"
+            }
+        }
+    }
+}
+
+// 把产物 jar 拷进实例 mods 目录，并清掉旧身份的 jar（polymer-recipe-fix-*）。
+// 用法：./gradlew installToInstance [-PinstanceMods="<mods dir>"]
+tasks.register('installToInstance', Copy) {
+    dependsOn tasks.named('build')
+    from(tasks.named('jar').flatMap { it.archiveFile })
+    into(instanceMods)
+    doFirst {
+        // 三批历史遗留都要清：polymer-recipe-fix（最初身份）、spacejoy-compat（第二身份）、
+        // IrisDimensionShaders（已并入本模组，留着会和 spacejoy_mod 抢同一份光影配置）。
+        def prefixes = ['polymer-recipe-fix-', 'spacejoy-compat-', 'spacejoy-mod-',
+                        'IrisDimensionShaders-', 'iris_dimension_shaders-']
+        def stale = new File(instanceMods).listFiles()?.findAll { f ->
+            def n = f.name
+            prefixes.any { n.startsWith(it) } && n != tasks.named('jar').get().archiveFile.get().asFile.name
+        }
+        if (stale) {
+            println "removing stale jars: ${stale*.name}"
+            stale.each { it.delete() }
+        }
+    }
+    doLast {
+        println "installed into ${instanceMods}"
+    }
+}
+
+// 一次性清理：发光改成服务端真实施加效果后，客户端的扫描循环不再需要。
+// 用法：./gradlew cleanupLegacyClientGlow
+tasks.register('cleanupLegacyClientGlow') {
+    doLast {
+        ['src/main/java/net/spacejoy/compat/client/AbilityGlow.java',
+         'src/main/java/net/spacejoy/compat/SpaceJoyCompatClient.java'].each { p ->
+            def f = file(p)
+            println(f.delete() ? "deleted ${p}" : "missing ${p}")
+        }
+        def dir = file('src/main/java/net/spacejoy/compat/client')
+        if (dir.isDirectory() && dir.listFiles()?.length == 0) {
+            println(dir.delete() ? "removed empty ${dir}" : "keep ${dir}")
+        }
+    }
+}
+
+// 把旧 1.21.1 的 Everlasting Abilities 设置带进当前实例：
+// 战利品表清单换回旧的大列表、精英图腾合成消耗 3→2、稀有度提升 15→30、客户端生物粒子关→开。
+// 用法：./gradlew portEAConfig
+tasks.register('portEAConfig') {
+    def configDir = new File('D:/Otheapps/Minecraft/.minecraft/versions/26.3-Fabric/config')
+    def recovered = file('old-ea-config-recovered.txt')
+    doLast {
+        def oldLine = recovered.readLines('UTF-8').find { it.trim().startsWith('lootTables = [') }
+        if (oldLine == null) throw new GradleException('lootTables 没在旧配置里找到')
+        def body = oldLine.substring(oldLine.indexOf('[') + 1, oldLine.lastIndexOf(']'))
+        // 旧配置里有一处全角逗号笔误，先统一成半角再切分。
+        def ids = body.replace('\uFF0C', ',').split(',').collect {
+            it.trim().replaceAll(/^"/, '').replaceAll(/"$/, '')
+        }.findAll { !it.isEmpty() }
+        def unique = new LinkedHashSet<String>(ids)
+        println "loot tables: ${ids.size()} entries, ${unique.size()} unique"
+        def listLine = "\t\tlootTables = [" + unique.collect { "\"$it\"" }.join(', ') + "]"
+
+        def serverFile = new File(configDir, 'everlastingabilities-server.toml')
+        def serverLines = serverFile.readLines('UTF-8').collect { String l ->
+            def t = l.trim()
+            if (t.startsWith('lootTables = [')) return listLine
+            if (t.startsWith('totemCraftingRarityIncreasePercent')) {
+                return l.substring(0, l.indexOf('=') + 1) + ' 30'
+            }
+            return l
+        }
+        serverFile.setText(serverLines.join('\n') + '\n', 'UTF-8')
+        println "updated ${serverFile}"
+
+        def commonFile = new File(configDir, 'everlastingabilities-common.toml')
+        commonFile.setText(commonFile.readLines('UTF-8').collect { String l ->
+            l.trim().startsWith('totemCraftingCount')
+                ? l.substring(0, l.indexOf('=') + 1) + ' 2' : l
+        }.join('\n') + '\n', 'UTF-8')
+        println "updated ${commonFile}"
+
+        def clientFile = new File(configDir, 'everlastingabilities-client.toml')
+        clientFile.setText(clientFile.readLines('UTF-8').collect { String l ->
+            l.trim().startsWith('showEntityParticles')
+                ? l.substring(0, l.indexOf('=') + 1) + ' true' : l
+        }.join('\n') + '\n', 'UTF-8')
+        println "updated ${clientFile}"
+    }
+}
+
+// 在 jar（含 META-INF/jars 内嵌 jar）里按名字片段找类，用于确认第三方 / Fabric API 的包路径。
+// 用法：./gradlew findClass -Pjar=<path> -Ppattern=ServerEntityEvents
+tasks.register('findClass') {
+    doLast {
+        def jarPath = findProperty('jar') as String
+        def pattern = findProperty('pattern') as String
+        if (!jarPath || !pattern) throw new GradleException('需要 -Pjar= 和 -Ppattern=')
+        def hits = [] as Set
+        new java.util.zip.ZipFile(new File(jarPath)).withCloseable { outer ->
+            outer.entries().each { e ->
+                if (e.name.endsWith('.class') && e.name.contains(pattern)) hits << e.name
+                if (e.name.startsWith('META-INF/jars/') && e.name.endsWith('.jar')) {
+                    def bytes = outer.getInputStream(e).bytes
+                    new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(bytes)).withCloseable { zis ->
+                        java.util.zip.ZipEntry ze
+                        while ((ze = zis.getNextEntry()) != null) {
+                            if (ze.name.endsWith('.class') && ze.name.contains(pattern)) hits << ze.name
+                        }
+                    }
+                }
+            }
+        }
+        hits.sort().each { println "  ${it}" }
+        println "total ${hits.size()}"
+    }
+}
+
+// 打印 jar 里某个类的公开方法签名，用来核对第三方 API（不加载类，只读 class 文件）。
+// 用法：./gradlew javapClass -Pjar=<path> -PtargetClass=me.shedaniel.clothconfig2.api.ConfigBuilder
+// 注意参数名不能叫 class：project.class 会被 Gradle 解析成项目自身的类。
+tasks.register('javapClass') {
+    doLast {
+        def jarPath = findProperty('jar') as String
+        def cls = findProperty('targetClass') as String
+        if (!jarPath || !cls) throw new GradleException('需要 -Pjar= 和 -PtargetClass=')
+        def javap = new File(System.getProperty('java.home'), 'bin/javap')
+        cls.split(',').each { String one ->
+            def proc = new ProcessBuilder(javap.absolutePath, '-cp', jarPath, one.trim())
+                    .redirectErrorStream(true).start()
+            println proc.inputStream.text
+            println "exit=${proc.waitFor()}"
+        }
+    }
+}
+
+// 把 IrisDimensionShaders 的非 GUI 逻辑搬进本工程并改包名。
+// 只搬 core / config / compat.iris / client 三个状态机类；原来的自绘 GUI 全部丢弃，
+// 统一改由 Cloth Config 模板呈现。
+// 用法：./gradlew migrateIrisModule
+tasks.register('migrateIrisModule') {
+    def sourceRoot = new File('D:/Code/MC/IrisDimensionShaders/src/main/java/io/github/spacjoy/irisdimensionshaders')
+    def targetRoot = file('src/main/java/net/spacejoy/mod/irisdim')
+    def wanted = [
+        'core/DimensionContext.java',
+        'core/DimensionId.java',
+        'core/DimensionMatcher.java',
+        'core/DimensionRule.java',
+        'core/RuleSet.java',
+        'core/ShaderAction.java',
+        'config/ActionSpec.java',
+        'config/ConfigStore.java',
+        'config/MatchSpec.java',
+        'config/ModConfig.java',
+        'config/ModSettings.java',
+        'config/RuleSpec.java',
+        'compat/iris/IrisApplyResult.java',
+        'compat/iris/IrisBackendSupport.java',
+        'compat/iris/IrisBridge.java',
+        'client/DimensionSwitchController.java',
+        'client/DimensionWatcher.java',
+        'client/DiscoveredDimensions.java'
+    ]
+    doLast {
+        if (!sourceRoot.isDirectory()) throw new GradleException("找不到源工程: ${sourceRoot}")
+        int n = 0
+        wanted.each { String rel ->
+            def src = new File(sourceRoot, rel)
+            if (!src.isFile()) { println "MISS ${rel}"; return }
+            def text = src.getText('UTF-8')
+                .replace('io.github.spacjoy.irisdimensionshaders', 'net.spacejoy.mod.irisdim')
+                .replace('IrisDimensionShaders.LOGGER', 'SpaceJoyMod.LOGGER')
+                .replace('IrisDimensionShaders.MOD_ID', 'SpaceJoyMod.MOD_ID')
+                .replace('IrisDimensionShaders.COMMAND_NAME', 'SpaceJoyMod.COMMAND_NAME')
+                // 原工程的 identity 类整块不再需要，改成引用新模组常量类。
+                .replaceAll(/import net\.spacejoy\.mod\.irisdim\.IrisDimensionShaders;\r?\n/, '')
+                .replaceAll(/IrisDimensionShaders\./, 'SpaceJoyMod.')
+            def dst = new File(targetRoot, rel)
+            dst.parentFile.mkdirs()
+            dst.setText(text, 'UTF-8')
+            println "OK   ${rel}"
+            n++
+        }
+        println "migrated ${n} file(s) -> ${targetRoot}"
+    }
+}
+
+// 一次性：把 net.spacejoy.compat 整体改名为 net.spacejoy.mod（含包声明、import、目录、模组 id）。
+// 用法：./gradlew renameToSpaceJoyMod
+tasks.register('renameToSpaceJoyMod') {
+    def mainDir = file('src/main')
+    doLast {
+        def javaOld = new File(mainDir, 'java/net/spacejoy/compat')
+        def javaNew = new File(mainDir, 'java/net/spacejoy/mod')
+        if (javaOld.isDirectory()) {
+            javaOld.eachFileRecurse { f ->
+                if (f.isFile()) {
+                    def rel = javaOld.toPath().relativize(f.toPath()).toString()
+                    def dst = new File(javaNew, rel)
+                    dst.parentFile.mkdirs()
+                    dst.setText(f.getText('UTF-8'), 'UTF-8')
+                    f.delete()
+                }
+            }
+            println "moved java sources -> ${javaNew}"
+            delete(javaOld)
+        }
+
+        def assetsOld = new File(mainDir, 'resources/assets/spacejoy_compat')
+        if (assetsOld.isDirectory()) {
+            assetsOld.renameTo(new File(mainDir, 'resources/assets/spacejoy_mod'))
+            println 'renamed assets dir'
+        }
+        def mixinsOld = new File(mainDir, 'resources/spacejoy_compat.mixins.json')
+        if (mixinsOld.isFile()) {
+            mixinsOld.renameTo(new File(mainDir, 'resources/spacejoy_mod.mixins.json'))
+            println 'renamed mixins json'
+        }
+
+        fileTree(mainDir) { include '**/*.java'; include '**/*.json' }.each { f ->
+            def text = f.getText('UTF-8')
+            def next = text
+                .replace('net.spacejoy.compat', 'net.spacejoy.mod')
+                .replace('spacejoy_compat', 'spacejoy_mod')
+                .replace('SpaceJoyCompat', 'SpaceJoyMod')
+            if (next != text) f.setText(next, 'UTF-8')
+        }
+        println 'rewrote package + id references'
+    }
+}
+
+// 迁移收尾：确认新项目构建通过后，删掉旧工程目录。
+// 用法：./gradlew removeOldProject
+tasks.register('removeOldProject') {
+    doLast {
+        def old = new File(projectDir.parentFile, 'polymer-recipe-fix')
+        if (old.exists()) {
+            println "deleting ${old}"
+            delete old
+        } else {
+            println "nothing to delete"
+        }
+    }
+}

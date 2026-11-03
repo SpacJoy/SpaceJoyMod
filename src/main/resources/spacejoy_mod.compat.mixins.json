@@ -1,0 +1,15 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "net.spacejoy.mod.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "plugin": "net.spacejoy.mod.mixin.SpaceJoyMixinPlugin",
+  "client": [
+    "IrisPipelinesMixin",
+    "IrisLoggingMixin",
+    "PolymerJeiCompatibilityMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

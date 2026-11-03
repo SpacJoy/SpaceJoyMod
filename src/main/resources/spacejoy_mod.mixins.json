@@ -1,0 +1,13 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "net.spacejoy.mod.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "BaseIngredientCodecMixin",
+    "OptionalIngredientCodecMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
