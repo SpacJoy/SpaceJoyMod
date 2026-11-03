@@ -1,5 +1,12 @@
 # SpaceJoyMod
 
+<a href="https://github.com/SpacJoy/SpaceJoyMod/releases"><img src="https://img.shields.io/github/v/release/SpacJoy/SpaceJoyMod?logo=github&label=Latest%20Release" alt="Latest Release"></a>
+<a href="https://github.com/SpacJoy/SpaceJoyMod/blob/main/LICENSE"><img src="https://img.shields.io/github/license/SpacJoy/SpaceJoyMod?label=License" alt="License"></a>
+<a href="https://github.com/SpacJoy/SpaceJoyMod/stargazers"><img src="https://img.shields.io/github/stars/SpacJoy/SpaceJoyMod?label=Stars" alt="Stars"></a>
+<img src="https://img.shields.io/badge/Minecraft-26.3-62B47A" alt="Minecraft 26.3">
+<img src="https://img.shields.io/badge/Fabric-0.19.5-DBD0B4" alt="Fabric">
+<a href="https://github.com/deepseek-ai/deepseek-harness"><img src="https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white" alt="powered by dsh"></a>
+
 一个整合包用的兼容修复 + 便利功能模组。每项功能独立开关，缺哪个前置就自动禁用对应功能，界面上置灰并说明原因。
 
 | 功能 | 需要 | 说明 |
@@ -156,3 +163,7 @@ net.spacejoy.mod
 `spacejoy_mod.mixins.json` 放通用补丁，`spacejoy_mod.client.mixins.json` 只放必须客户端加载的，`spacejoy_mod.compat.mixins.json` 专放「目标模组可能不在」的补丁 —— 它的 `plugin` 是 `SpaceJoyMixinPlugin`，前置缺失时把这些 mixin 整个跳过，而不是靠 `require = 0` 硬吞注入失败。
 
 软依赖铁律：第三方模组的类型只能出现在它自己的 `*Compat` 桥接类里，其余类最多引用 `CompatFlags` 的布尔值。这样前置缺失时不会 `NoClassDefFoundError`。
+
+## 许可证
+
+本项目采用 [MIT License](LICENSE)，可自由使用、修改、分发，包括商业用途，保留版权声明即可。
