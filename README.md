@@ -19,7 +19,20 @@
 | 副手火把保留 | 无 | 副手那摞火把剩到保留数（默认 1 支）就不再从副手放置，永远留得住最后几支照明；红石火把不受影响 |
 | 按维度切换光影 | Iris | 进维度时按规则换光影包，规则用内置的编辑器改 |
 
-全部开关在 ModMenu 的配置界面里，分「通用 / 修复 / 功能 / 维度光影」四页。装了 Sodium 的话，视频设置里还会多出一行 **SpaceJoyMod → 光影规则**，点进去就是规则编辑器。
+全部开关在 ModMenu 的配置界面里，分「通用 / 修复 / 便利 / 快捷键 / 功能 / 联动 / 维度光影」七页。装了 Sodium 的话，视频设置里还会多出一行 **SpaceJoyMod → 光影规则**，点进去就是规则编辑器。
+
+### 便利功能（移植自 tweakeroo）
+
+| 功能 | 默认 | 说明 |
+| --- | --- | --- |
+| 自由相机 | 关 | 灵魂出窍：镜头脱离身体飞出去，身体留在原地。身体默认不吃任何输入（可单独放开）；第一人称手 / 快捷栏 / 状态栏各有开关；死亡、进新世界会自动关掉 |
+| 始终疾跑 | 关 | 按住前进自动疾跑。此时按一下疾跑键换成走路，再按一下切回疾跑；松开前进后重置 |
+| 浮空放置方块 | 关 | 创造模式下对着空气右键，方块直接落在准星前 N 格（默认 3 格），省得先垫个方块 |
+| 自动切换鞘翅 | 关 | 下落时自动换上背包里最好的鞘翅，落地后换回原来的胸甲 |
+| 旁观者传送 | 关 | 旁观菜单里的「传送到玩家」列出所有在线玩家，不再只列正在旁观的 |
+| 自定义背包缩放 | 关 | 打开容器界面时临时换一个 GUI 缩放，关掉界面恢复原样 |
+
+自由相机的镜头转向系数、移动速度都按 tweakeroo 的手感对齐（转向 0.15、基准速度 `0.07 × 10`、斜走 1.2 倍、起步 0.15 缓动、松手 0.4 减速）。和参考实现不同的是没搬相机预设、区域选择器互斥、火箭自动切换这些附属功能，本体也恒为冻结，不做「相机开着还能走」。
 
 图标由 `tools/gen_icon.py` 生成（Pillow）：品红 → 紫 → 亮蓝的对角渐变，加三颗白色四角星；另出一张 16×16 的单色方块给 Sodium 当遮罩染色用。想换配色就改脚本顶部的 `PINK` / `VIOLET` / `BLUE` 三个常量再跑一遍。
 
@@ -29,8 +42,9 @@
 | --- | --- |
 | 小键盘 8 | 打开主配置界面（同 ModMenu 里点齿轮） |
 | 未绑定 | 规则编辑器（想用键开就自己绑） |
+| 未绑定 | 切换自由相机（想用键开就自己绑） |
 
-主配置界面默认放在小键盘 8：主键盘区一个键都不占，也不会和 `1`–`9` 的快捷栏、`E`/`Q`/`F` 这些常用键撞。规则编辑器默认不绑键 —— 它是低频操作，还有 ModMenu 的入口按钮、Sodium 视频设置里的那一行、`/spacejoydim gui` 三条路能进，占个键不值当。
+主配置界面默认放在小键盘 8：主键盘区一个键都不占，也不会和 `1`–`9` 的快捷栏、`E`/`Q`/`F` 这些常用键撞。规则编辑器和自由相机默认不绑键 —— 规则编辑器是低频操作，还有 ModMenu 的入口按钮、Sodium 视频设置里的那一行、`/spacejoydim gui` 三条路能进；自由相机也能从配置界面里开关。占个键不值当。
 
 在「选项 → 控制 → 按键绑定 → SpaceJoyMod」里可以随时改成别的。
 
@@ -118,7 +132,7 @@ if (renderPipeline.getLocation().getNamespace().equals("minecraft")) {
 
 ## 配置文件
 
-- `config/spacejoy-mod.json` —— 全部开关（总开关、日志、两项修复、三项功能、维度光影；`irisOutlineFix` 与 `polymerRecipeFix` 在「修复」页，其中 `irisOutlineFix` **默认关闭**）
+- `config/spacejoy-mod.json` —— 全部开关（总开关、日志、两项修复、六项便利功能、三项功能联动、维度光影；`irisOutlineFix` 与 `polymerRecipeFix` 在「修复」页，其中 `irisOutlineFix` **默认关闭**）
 - `config/spacejoy-mod/irisdim/config.json` —— 维度光影的规则列表（界面上也能改）
 - `config/spacejoy-mod/irisdim/discovered.json` —— 进过的维度，带可粘贴的规则模板
 
@@ -142,14 +156,20 @@ if (renderPipeline.getLocation().getNamespace().equals("minecraft")) {
 net.spacejoy.mod
 ├── SpaceJoyMod                 主入口
 ├── CompatFlags                 软依赖探测（只碰 FabricLoader，绝不引用第三方类）
-├── client/SpaceJoyKeys         小键盘 8 键位（规则编辑器默认不绑）
+├── client/SpaceJoyKeys         快捷键：小键盘 8 配置界面、规则编辑器与自由相机默认不绑
 ├── client/ClientMobLabel        能力标签文本：EA 能力缓存 + 按 id 缓存结果
 ├── compat/EACompat             EA 的全部接触面，EA 缺失时这个类不会被加载
 ├── compat/IrisCompat           Iris 的唯一接触面：补 outline 管线、判定要静音的 fatal
 ├── compat/MobGlow              服务端只负责清掉老版本遗留的无限时长 GLOWING
 ├── config/SpaceJoyConfig       Gson 读写 config/spacejoy-mod.json
-├── config/SpaceJoyConfigScreen Cloth Config 四页界面，缺依赖置灰
+├── config/SpaceJoyConfigScreen Cloth Config 七页界面，缺依赖置灰
 ├── config/ScreenLinkEntry      跳转子界面的按钮条目（Cloth 没这类型，自己写的）
+├── feature/EquipmentSwapper    鞘翅与胸甲互换（含背包里挑最好的鞘翅）
+├── feature/OffhandTorchGuard   副手火把保留最后几支
+├── feature/freecam/            自由相机
+│   ├── FreeCameraEntity        继承 LocalPlayer 的假实体，只当镜头
+│   ├── SpaceJoyFreeCamera      状态管理：建/拆相机、tick 驱动、死亡与换世界自动关
+│   └── EmptyClientInput        给假实体挂的空输入，保证它自己不动
 ├── jade/                       Jade entrypoint 与 tooltip provider
 ├── modmenu/ModMenuIntegration  ModMenu entrypoint
 ├── irisdim/                    从 IrisDimensionShaders 合并进来的维度光影
@@ -157,6 +177,8 @@ net.spacejoy.mod
 │   ├── compat/sodium/          Sodium 视频设置页里的入口
 │   └── client/gui/             规则编辑器（自绘，原 IrisDimensionShaders 的界面）
 └── mixin/                      polymer 编解码补丁 + EntityRendererMixin（头顶标签）
+                                + 便利功能补丁（疾跑 / 鞘翅 / 浮空放置 / 旁观传送 / 背包缩放）
+                                + freecam/ 自由相机的一整套拦截
                                 + IrisPipelinesMixin / IrisLoggingMixin / PolymerJeiCompatibilityMixin
                                 + SpaceJoyMixinPlugin（按前置决定上不上）
 ```
