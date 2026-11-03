@@ -16,6 +16,8 @@ import org.slf4j.LoggerFactory;
  * <ul>
  *   <li>修复：polymer-core 的 ingredient 编解码在「无包上下文」时崩溃
  *       （连带 TACZ 配方同步失败、JEI 合成页空掉）</li>
+ *   <li>修复：TaCZ 的实体同步数据表是裸 HashMap，服务端 tick 与实体存档读写撞车时
+ *       抛 {@code ConcurrentModificationException}（装了 c2me 之后必现）</li>
  *   <li>功能：Jade 显示生物可掉落的能力（需要 Jade + Everlasting Abilities）</li>
  *   <li>功能：给带能力的生物加头顶标签（走原版命名牌通道，被命名时自动上移让位）</li>
  *   <li>功能：BuffMobs 精英生物必掉高稀有度能力图腾（需要 BuffMobs + Everlasting Abilities）</li>
@@ -36,10 +38,11 @@ public class SpaceJoyMod implements ModInitializer {
             String version = FabricLoader.getInstance().getModContainer(MOD_ID)
                     .map(c -> c.getMetadata().getVersion().getFriendlyString())
                     .orElse("?");
-            LOGGER.info("SpaceJoyMod {} loaded (enabled={}, polymer={}, jade={}, everlastingabilities={}, buffmobs={}, iris={})",
+            LOGGER.info("SpaceJoyMod {} loaded (enabled={}, polymer={}, tacz={}, jade={}, everlastingabilities={}, buffmobs={}, iris={})",
                     version,
                     SpaceJoyConfig.isEnabled(),
                     CompatFlags.POLYMER_LOADED,
+                    CompatFlags.TACZ_LOADED,
                     CompatFlags.JADE_LOADED,
                     CompatFlags.EA_LOADED,
                     CompatFlags.BUFFMOBS_LOADED,

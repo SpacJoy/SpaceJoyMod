@@ -36,6 +36,7 @@ public final class SpaceJoyConfig {
     public static final boolean DEFAULT_ENABLED = true;
     public static final boolean DEFAULT_DEBUG_LOG = true;
     public static final boolean DEFAULT_POLYMER_RECIPE_FIX = true;
+    public static final boolean DEFAULT_TACZ_CONCURRENCY_FIX = true;
     public static final boolean DEFAULT_IRIS_OUTLINE_FIX = false;
     public static final boolean DEFAULT_JADE_ABILITY_DISPLAY = true;
     public static final boolean DEFAULT_MOB_LABEL = true;
@@ -56,6 +57,7 @@ public final class SpaceJoyConfig {
     private static boolean enabled = DEFAULT_ENABLED;
     private static boolean debugLog = DEFAULT_DEBUG_LOG;
     private static boolean polymerRecipeFix = DEFAULT_POLYMER_RECIPE_FIX;
+    private static boolean taczConcurrencyFix = DEFAULT_TACZ_CONCURRENCY_FIX;
     private static boolean irisOutlineFix = DEFAULT_IRIS_OUTLINE_FIX;
     private static boolean jadeAbilityDisplay = DEFAULT_JADE_ABILITY_DISPLAY;
     private static boolean mobLabel = DEFAULT_MOB_LABEL;
@@ -125,6 +127,7 @@ public final class SpaceJoyConfig {
             enabled = readBool(root, "enabled", enabled);
             debugLog = readBool(root, "debugLog", debugLog);
             polymerRecipeFix = readBool(root, "polymerRecipeFix", polymerRecipeFix);
+            taczConcurrencyFix = readBool(root, "taczConcurrencyFix", taczConcurrencyFix);
             irisOutlineFix = readBool(root, "irisOutlineFix", irisOutlineFix);
             jadeAbilityDisplay = readBool(root, "jadeAbilityDisplay", jadeAbilityDisplay);
             mobLabel = readBool(root, "mobLabel", mobLabel);
@@ -157,6 +160,7 @@ public final class SpaceJoyConfig {
         root.addProperty("enabled", enabled);
         root.addProperty("debugLog", debugLog);
         root.addProperty("polymerRecipeFix", polymerRecipeFix);
+        root.addProperty("taczConcurrencyFix", taczConcurrencyFix);
         root.addProperty("irisOutlineFix", irisOutlineFix);
         root.addProperty("jadeAbilityDisplay", jadeAbilityDisplay);
         root.addProperty("mobLabel", mobLabel);
@@ -267,6 +271,23 @@ public final class SpaceJoyConfig {
     public static void setPolymerRecipeFix(boolean value) {
         ensureLoaded();
         polymerRecipeFix = value;
+    }
+
+    /**
+     * 修复：TaCZ 的 {@code DataHolder.dataMap} 由裸 {@code HashMap} 换成 {@code ConcurrentHashMap}，
+     * 避免服务端 tick 线程与实体 NBT 读写线程撞车时抛 {@code ConcurrentModificationException} 崩游戏。
+     *
+     * <p>只跟 {@code isEnabled()} 取与 —— 不硬绑 TaCZ 是否安装：混入本身由
+     * {@code SpaceJoyMixinPlugin} 按 {@code isModLoaded("tacz")} 把关，没装时这段代码根本不进 JVM。
+     */
+    public static boolean isTaczConcurrencyFix() {
+        ensureLoaded();
+        return taczConcurrencyFix;
+    }
+
+    public static void setTaczConcurrencyFix(boolean value) {
+        ensureLoaded();
+        taczConcurrencyFix = value;
     }
 
     /**

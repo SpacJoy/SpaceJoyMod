@@ -89,6 +89,15 @@ public final class SpaceJoyConfigScreen {
                 .setTooltip(tooltip(K + "polymerRecipeFix.tip", polymer, "polymer-core"))
                 .build(), polymer));
 
+        boolean tacz = CompatFlags.TACZ_LOADED;
+        category.addEntry(gate(eb.startBooleanToggle(
+                        Component.translatable(K + "taczConcurrencyFix"),
+                        SpaceJoyConfig.isTaczConcurrencyFix())
+                .setDefaultValue(SpaceJoyConfig.DEFAULT_TACZ_CONCURRENCY_FIX)
+                .setSaveConsumer(SpaceJoyConfig::setTaczConcurrencyFix)
+                .setTooltip(tooltip(K + "taczConcurrencyFix.tip", tacz, "TaCZ"))
+                .build(), tacz));
+
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "irisOutlineFix"),
                         SpaceJoyConfig.isIrisOutlineFix())
@@ -99,6 +108,9 @@ public final class SpaceJoyConfigScreen {
 
         if (!polymer) {
             category.addEntry(note(eb, K + "missing.polymer"));
+        }
+        if (!tacz) {
+            category.addEntry(note(eb, K + "missing.tacz"));
         }
         if (!iris) {
             category.addEntry(note(eb, K + "missing.iris"));

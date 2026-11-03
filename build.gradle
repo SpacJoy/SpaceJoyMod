@@ -26,6 +26,8 @@ tasks.register('syncLibs', Copy) {
         // 后者的 addIngredientsAtRuntime 会对空集合抛异常（源头在 polymer）。
         include 'iris-fabric-*.jar'
         include '*jei-26.3-fabric*.jar'
+        // TaCZ 只用于编译并发修复混入（DataHolder.dataMap 换成 ConcurrentHashMap）。
+        include 'TACZ-Refabricated-*.jar'
         rename { String name ->
             if (name.startsWith('Jade-')) return 'jade.jar'
             if (name.contains('everlastingabilities')) return 'everlastingabilities.jar'
@@ -35,6 +37,7 @@ tasks.register('syncLibs', Copy) {
             if (name.startsWith('buffmobs-')) return 'buffmobs.jar'
             if (name.startsWith('iris-fabric')) return 'iris.jar'
             if (name.contains('jei-26.3-fabric')) return 'jei.jar'
+            if (name.startsWith('TACZ-Refabricated-')) return 'tacz.jar'
             return 'cyclopscore.jar'
         }
     }
@@ -54,7 +57,7 @@ dependencies {
     // Loom 的 mod 元数据解析，能直接吃实例里的那个 jar。
     compileOnly files('libs/jade.jar', 'libs/everlastingabilities.jar', 'libs/cyclopscore.jar',
             'libs/cloth-config.jar', 'libs/modmenu.jar', 'libs/sodium.jar',
-            'libs/iris.jar', 'libs/jei.jar', 'libs/buffmobs.jar')
+            'libs/iris.jar', 'libs/jei.jar', 'libs/buffmobs.jar', 'libs/tacz.jar')
 }
 
 tasks.named('compileJava').configure {

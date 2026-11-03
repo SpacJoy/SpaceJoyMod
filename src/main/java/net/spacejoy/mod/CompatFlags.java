@@ -11,6 +11,7 @@ public final class CompatFlags {
     public static final boolean EA_LOADED = FabricLoader.getInstance().isModLoaded("everlastingabilities");
     public static final boolean BUFFMOBS_LOADED = FabricLoader.getInstance().isModLoaded("buffmobs");
     public static final boolean POLYMER_LOADED = FabricLoader.getInstance().isModLoaded("polymer-core");
+    public static final boolean TACZ_LOADED = FabricLoader.getInstance().isModLoaded("tacz");
     public static final boolean IRIS_LOADED = FabricLoader.getInstance().isModLoaded("iris");
     public static final boolean CLOTH_CONFIG_LOADED = FabricLoader.getInstance().isModLoaded("cloth-config");
     public static final boolean MODMENU_LOADED = FabricLoader.getInstance().isModLoaded("modmenu");

@@ -13,6 +13,7 @@
 | --- | --- | --- |
 | polymer 配方编码修复 | polymer-core | 修好 TACZ 配方同步丢失 → JEI 合成页空掉 |
 | 静音 polymer 的空物品表报错 | polymer-core + JEI | 服务器没发 polymer 物品时 JEI 会收到空表并抛 `ingredients must not be empty`，改成直接跳过 |
+| TaCZ 并发崩溃修复 | TaCZ | TaCZ 存生物数据的表是裸 `HashMap`，服务端 tick 和实体存档读写会同时碰它，装了 c2me 这类多线程区块模组就会撞出 `ConcurrentModificationException` 崩游戏。换成线程安全的表，行为不变 |
 | 补齐 Iris 的描边管线映射 | Iris | 把 `OUTLINE_CULL` / `OUTLINE_NO_CULL` 补进 Iris 的管线表，并静音 `entity_outline` 后处理链的假报错（原版发光效果本身要用） |
 | Jade 显示可掉落能力 | Jade + Everlasting Abilities | 准星指着生物时多一行「可掉落能力」 |
 | 标记带能力的生物 | Everlasting Abilities | 在带能力掉落的生物头顶显示它能掉什么，走原版命名牌渲染，遮挡与光影天然正确 |
@@ -130,9 +131,36 @@ if (renderPipeline.getLocation().getNamespace().equals("minecraft")) {
 
 这一项**默认关闭**。带能力生物现在靠头顶标签标记，不依赖描边；开着它只对原版发光效果（光灵箭、`/glowing`、队伍颜色）在光影下是否画对有意义。关着时那 6 条 `Missing program` 会回来，属于预期。
 
+## TaCZ 数据表为什么要换成并发容器
+
+崩溃栈是这样（26.3 R1-hotfix3 的实机崩溃报告）：
+
+```
+java.util.ConcurrentModificationException
+  at java.base/java.util.HashMap.computeIfAbsent(HashMap.java:1230)
+  at com.tacz.guns.entity.sync.core.DataHolder.get(DataHolder.java:30)
+  at com.tacz.guns.entity.sync.core.SyncedEntityData.get(SyncedEntityData.java:124)
+  at com.tacz.guns.entity.sync.core.SyncedDataKey.getValue(SyncedDataKey.java:28)
+  at net.minecraft.world.entity.LivingEntity.getSynReloadState(LivingEntity.java:29383)
+  at com.tacz.guns.entity.shooter.LivingEntityAim.tickSprint(LivingEntityAim.java:104)
+```
+
+`DataHolder` 里那行是 `public Map<..., ...> dataMap = new HashMap<>();` —— 一张裸 `HashMap`，全类没有任何同步。而它会同时被两边摸到：
+
+- **服务端 tick 线程**：`LivingEntityAim.tickSprint` 每 tick 取一次 `reload_state`，走 `DataHolder.get` → `computeIfAbsent`。每只生物都走，没拿枪的骷髅也一样。
+- **实体 NBT 线程**：TaCZ 自己的 `EntityMixin` 把 `DataHolderCapabilityProvider.writeToNbt` / `readFromNbt` 注进了 `Entity.saveWithoutId` / `Entity.load`，而 `deserializeNBT` 会先 `dataMap.clear()` 再逐条 `put`。装了 c2me 之后实体存档读写会离开主线程，于是撞上第一边。
+
+`HashMap.computeIfAbsent` 在 mapping function 执行完会核对一次 `modCount`（JDK 25 的 `HashMap.java:1230`），期间被改过就抛 CME。所以这不是重入 bug，是实打实的跨线程并发写。
+
+修法是把 `dataMap` 换成 `ConcurrentHashMap`：`get` / `set` 的 `computeIfAbsent` 本来就是原子语义，换掉之后并发语义只会更强；`clear()` 加逐条 `put` 的重建期间别的线程会看到一张还在重建的表（可能瞬态读到默认值），但不会再抛异常，而重建发生在实体加载期，那时实体还没开始 tick。
+
+两个混入分工：`TaczDataHolderMixin` 在构造和 `get` / `set` / `clean` / `gather*` 入口兜底换表；`TaczDataHolderProviderMixin` 在 `writeToNbt` / `readFromNbt` 入口再兜一次 —— 因为玩家克隆（`SyncedEntityDataEvent.onPlayerClone`）会把表整个换回普通 `HashMap`，换完之后如果第一个摸它的是存档线程，就轮不到 tick 线程去换。换表本身加锁，否则两个线程各建一张，后赋值的会盖掉另一半数据。
+
+混入配置单独放在 `spacejoy_mod.tacz.mixins.json`，**不带 `environment: client`** —— 崩溃发生在 Integrated Server 线程，只修客户端等于没修。目标类属于第三方模组，所以 `required: false`，由 `SpaceJoyMixinPlugin` 按 `isModLoaded("tacz")` 决定是否应用。
+
 ## 配置文件
 
-- `config/spacejoy-mod.json` —— 全部开关（总开关、日志、两项修复、六项便利功能、三项功能联动、维度光影；`irisOutlineFix` 与 `polymerRecipeFix` 在「修复」页，其中 `irisOutlineFix` **默认关闭**）
+- `config/spacejoy-mod.json` —— 全部开关（总开关、日志、三项修复、六项便利功能、三项功能联动、维度光影；`irisOutlineFix`、`polymerRecipeFix`、`taczConcurrencyFix` 在「修复」页，其中 `irisOutlineFix` **默认关闭**）
 - `config/spacejoy-mod/irisdim/config.json` —— 维度光影的规则列表（界面上也能改）
 - `config/spacejoy-mod/irisdim/discovered.json` —— 进过的维度，带可粘贴的规则模板
 
@@ -141,7 +169,7 @@ if (renderPipeline.getLocation().getNamespace().equals("minecraft")) {
 ```bash
 ./gradlew build                 # 产物在 build/libs/
 ./gradlew installToInstance     # 装进实例，顺带清掉旧身份的 jar
-./gradlew syncLibs              # 从实例 mods 同步 Jade/EA/CyclopsCore/ClothConfig/ModMenu 到 libs/
+./gradlew syncLibs              # 从实例 mods 同步 Jade/EA/CyclopsCore/ClothConfig/ModMenu/TaCZ 到 libs/
 ./gradlew verifyPolymerTargets  # 校验 mixin 目标类在 polymer-bundled 的内嵌 jar 里确实存在
 ./gradlew listJarClasses -Pjar=<jar> -Pprefix=<包前缀>    # 查 jar 里有哪些类
 ./gradlew findClass -Pjar=<jar> -Ppattern=<片段>          # 连 META-INF/jars 里的内嵌 jar 一起搜
@@ -179,6 +207,7 @@ net.spacejoy.mod
 └── mixin/                      polymer 编解码补丁 + EntityRendererMixin（头顶标签）
                                 + 便利功能补丁（疾跑 / 鞘翅 / 浮空放置 / 旁观传送 / 背包缩放）
                                 + freecam/ 自由相机的一整套拦截
+                                + tacz/ TaCZ 数据表换并发容器（唯一一组非 client 混入）
                                 + IrisPipelinesMixin / IrisLoggingMixin / PolymerJeiCompatibilityMixin
                                 + SpaceJoyMixinPlugin（按前置决定上不上）
 ```
