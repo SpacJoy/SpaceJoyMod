@@ -4,8 +4,10 @@ import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
+import me.shedaniel.clothconfig2.impl.builders.SubCategoryBuilder;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -51,6 +53,8 @@ public final class SpaceJoyConfigScreen {
 
         buildGeneral(builder.getOrCreateCategory(Component.translatable(K + "tab.general")), eb);
         buildFixes(builder.getOrCreateCategory(Component.translatable(K + "tab.fixes")), eb, iris);
+        buildTweaks(builder.getOrCreateCategory(Component.translatable(K + "tab.tweaks")), eb);
+        buildKeys(builder.getOrCreateCategory(Component.translatable(K + "tab.keys")), eb);
         buildFeatures(builder.getOrCreateCategory(Component.translatable(K + "tab.features")), eb, ea, jade);
         buildIntegration(builder.getOrCreateCategory(Component.translatable(K + "tab.integration")), eb, ea);
         buildIris(builder.getOrCreateCategory(Component.translatable(K + "tab.iris")), eb, iris, parent);
@@ -64,8 +68,10 @@ public final class SpaceJoyConfigScreen {
 
     private static void buildGeneral(ConfigCategory category, ConfigEntryBuilder eb) {
         category.addEntry(toggle(eb, K + "enabled", SpaceJoyConfig.isEnabled(),
+                SpaceJoyConfig.DEFAULT_ENABLED,
                 SpaceJoyConfig::setEnabled, K + "enabled.tip"));
         category.addEntry(toggle(eb, K + "debugLog", SpaceJoyConfig.isDebugLog(),
+                SpaceJoyConfig.DEFAULT_DEBUG_LOG,
                 SpaceJoyConfig::setDebugLog, K + "debugLog.tip"));
     }
 
@@ -78,7 +84,7 @@ public final class SpaceJoyConfigScreen {
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "polymerRecipeFix"),
                         SpaceJoyConfig.isPolymerRecipeFix())
-                .setDefaultValue(true)
+                .setDefaultValue(SpaceJoyConfig.DEFAULT_POLYMER_RECIPE_FIX)
                 .setSaveConsumer(SpaceJoyConfig::setPolymerRecipeFix)
                 .setTooltip(tooltip(K + "polymerRecipeFix.tip", polymer, "polymer-core"))
                 .build(), polymer));
@@ -86,7 +92,7 @@ public final class SpaceJoyConfigScreen {
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "irisOutlineFix"),
                         SpaceJoyConfig.isIrisOutlineFix())
-                .setDefaultValue(false)
+                .setDefaultValue(SpaceJoyConfig.DEFAULT_IRIS_OUTLINE_FIX)
                 .setSaveConsumer(SpaceJoyConfig::setIrisOutlineFix)
                 .setTooltip(tooltip(K + "irisOutlineFix.tip", iris, "Iris"))
                 .build(), iris));
@@ -100,6 +106,123 @@ public final class SpaceJoyConfigScreen {
     }
 
     // -------------------------------------------------------------------------------------
+    // 操作增强（移植自 tweakeroo）
+    // -------------------------------------------------------------------------------------
+
+    /**
+     * 六项 tweakeroo 功能，按用途分区。
+     *
+     * <p>只有自由相机折起来 —— 它自己带五个开关，摊开会把整页顶下去。
+     * 其余每个功能区只有一两项，用一行小标题分隔就够了，不套折叠：
+     * 为了看一眼设置还得先点开一次，多一层没有意义的操作。
+     *
+     * <p>全部是模组自己实现的，不依赖 MaLiLib，所以这里一项都不置灰 —— 没装 MaLiLib 也照常能用。
+     */
+    private static void buildTweaks(ConfigCategory category, ConfigEntryBuilder eb) {
+        // ---- 自由相机：唯一折叠的一组 ----
+        SubCategoryBuilder camera = eb.startSubCategory(Component.translatable(K + "section.freeCamera"))
+                .setExpanded(false);
+        // 走 setState 而不是直接写配置：这样在游戏里拨这个开关会立刻建/拆相机，也会弹提示，
+        // 和快捷键那条路径完全一致。
+        camera.add(toggle(eb, K + "freeCamera", SpaceJoyConfig.isFreeCamera(),
+                SpaceJoyConfig.DEFAULT_FREE_CAMERA,
+                net.spacejoy.mod.feature.freecam.SpaceJoyFreeCamera::setState, K + "freeCamera.tip"));
+        camera.add(toggle(eb, K + "freeCameraPlayerInputs", SpaceJoyConfig.isFreeCameraPlayerInputs(),
+                SpaceJoyConfig.DEFAULT_FREE_CAMERA_PLAYER_INPUTS,
+                SpaceJoyConfig::setFreeCameraPlayerInputs, K + "freeCameraPlayerInputs.tip"));
+        camera.add(toggle(eb, K + "freeCameraShowHands", SpaceJoyConfig.isFreeCameraShowHands(),
+                SpaceJoyConfig.DEFAULT_FREE_CAMERA_SHOW_HANDS,
+                SpaceJoyConfig::setFreeCameraShowHands, K + "freeCameraShowHands.tip"));
+        camera.add(toggle(eb, K + "freeCameraShowHotbar", SpaceJoyConfig.isFreeCameraShowHotbar(),
+                SpaceJoyConfig.DEFAULT_FREE_CAMERA_SHOW_HOTBAR,
+                SpaceJoyConfig::setFreeCameraShowHotbar, K + "freeCameraShowHotbar.tip"));
+        camera.add(toggle(eb, K + "freeCameraShowStatusBars", SpaceJoyConfig.isFreeCameraShowStatusBars(),
+                SpaceJoyConfig.DEFAULT_FREE_CAMERA_SHOW_STATUS_BARS,
+                SpaceJoyConfig::setFreeCameraShowStatusBars, K + "freeCameraShowStatusBars.tip"));
+        category.addEntry(camera.build());
+
+        // ---- 移动 ----
+        category.addEntry(section(eb, K + "section.movement"));
+        category.addEntry(toggle(eb, K + "permanentSprint", SpaceJoyConfig.isPermanentSprint(),
+                SpaceJoyConfig.DEFAULT_PERMANENT_SPRINT,
+                SpaceJoyConfig::setPermanentSprint, K + "permanentSprint.tip"));
+
+        // ---- 建造 ----
+        category.addEntry(section(eb, K + "section.building"));
+        category.addEntry(toggle(eb, K + "angelBlock", SpaceJoyConfig.isAngelBlock(),
+                SpaceJoyConfig.DEFAULT_ANGEL_BLOCK,
+                SpaceJoyConfig::setAngelBlock, K + "angelBlock.tip"));
+        category.addEntry(eb.startIntSlider(
+                        Component.translatable(K + "angelBlockPlacementDistance"),
+                        SpaceJoyConfig.getAngelBlockPlacementDistance(),
+                        SpaceJoyConfig.MIN_ANGEL_BLOCK_DISTANCE, SpaceJoyConfig.MAX_ANGEL_BLOCK_DISTANCE)
+                .setDefaultValue(SpaceJoyConfig.DEFAULT_ANGEL_BLOCK_DISTANCE)
+                .setTextGetter(v -> Component.translatable(K + "angelBlockPlacementDistance.value", v))
+                .setSaveConsumer(SpaceJoyConfig::setAngelBlockPlacementDistance)
+                .setTooltip(Component.translatable(K + "angelBlockPlacementDistance.tip"))
+                .build());
+
+        // ---- 装备 ----
+        category.addEntry(section(eb, K + "section.equipment"));
+        category.addEntry(toggle(eb, K + "autoSwitchElytra", SpaceJoyConfig.isAutoSwitchElytra(),
+                SpaceJoyConfig.DEFAULT_AUTO_SWITCH_ELYTRA,
+                SpaceJoyConfig::setAutoSwitchElytra, K + "autoSwitchElytra.tip"));
+
+        // ---- 界面 ----
+        category.addEntry(section(eb, K + "section.interface"));
+        category.addEntry(toggle(eb, K + "customInventoryGuiScale", SpaceJoyConfig.isCustomInventoryGuiScale(),
+                SpaceJoyConfig.DEFAULT_CUSTOM_INVENTORY_GUI_SCALE,
+                SpaceJoyConfig::setCustomInventoryGuiScale, K + "customInventoryGuiScale.tip"));
+        category.addEntry(eb.startIntSlider(
+                        Component.translatable(K + "customInventoryScale"),
+                        SpaceJoyConfig.getCustomInventoryScale(),
+                        SpaceJoyConfig.MIN_INVENTORY_SCALE, SpaceJoyConfig.MAX_INVENTORY_SCALE)
+                .setDefaultValue(SpaceJoyConfig.DEFAULT_INVENTORY_SCALE)
+                .setTextGetter(v -> Component.translatable(K + "customInventoryScale.value", v))
+                .setSaveConsumer(SpaceJoyConfig::setCustomInventoryScale)
+                .setTooltip(Component.translatable(K + "customInventoryScale.tip"))
+                .build());
+
+        // ---- 旁观 ----
+        category.addEntry(section(eb, K + "section.spectator"));
+        category.addEntry(toggle(eb, K + "spectatorTeleport", SpaceJoyConfig.isSpectatorTeleport(),
+                SpaceJoyConfig.DEFAULT_SPECTATOR_TELEPORT,
+                SpaceJoyConfig::setSpectatorTeleport, K + "spectatorTeleport.tip"));
+    }
+
+    /** 分区小标题：只做视觉分隔，不加折叠。 */
+    private static AbstractConfigListEntry section(ConfigEntryBuilder eb, String key) {
+        return eb.startTextDescription(Component.translatable(key).withStyle(ChatFormatting.BOLD)).build();
+    }
+
+    // -------------------------------------------------------------------------------------
+    // 快捷键
+    // -------------------------------------------------------------------------------------
+
+    /**
+     * 本模组按键的改绑页。
+     *
+     * <p>改动写回的是原版 {@link net.minecraft.client.KeyMapping}，所以和「选项 → 控制 → 按键绑定」
+     * 里那一份是同一套数据，两边随便改哪边都同步；保存时一并写进 {@code options.txt}。
+     */
+    private static void buildKeys(ConfigCategory category, ConfigEntryBuilder eb) {
+        category.addEntry(note(eb, K + "keys.hint"));
+
+        for (net.minecraft.client.KeyMapping mapping : net.spacejoy.mod.client.SpaceJoyKeys.allMappings()) {
+            if (mapping == null) {
+                continue;
+            }
+            category.addEntry(eb.startKeyCodeField(
+                            Component.translatable(mapping.getName()), mapping.key)
+                    // 原版 KeyMapping 不支持组合键，开了只会存下一个用不上的值。
+                    .setAllowModifiers(false)
+                    .setKeySaveConsumer(key -> net.spacejoy.mod.client.SpaceJoyKeys.applyKey(mapping, key))
+                    .setDefaultValue(mapping.getDefaultKey())
+                    .build());
+        }
+    }
+
+    // -------------------------------------------------------------------------------------
     // 功能
     // -------------------------------------------------------------------------------------
 
@@ -109,7 +232,7 @@ public final class SpaceJoyConfigScreen {
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "jadeAbilityDisplay"),
                         SpaceJoyConfig.isJadeAbilityDisplay())
-                .setDefaultValue(true)
+                .setDefaultValue(SpaceJoyConfig.DEFAULT_JADE_ABILITY_DISPLAY)
                 .setSaveConsumer(SpaceJoyConfig::setJadeAbilityDisplay)
                 .setTooltip(tooltip(K + "jadeAbilityDisplay.tip", jadeOk, "Jade + Everlasting Abilities"))
                 .build(), jadeOk));
@@ -117,7 +240,7 @@ public final class SpaceJoyConfigScreen {
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "mobLabel"),
                         SpaceJoyConfig.isMobLabel())
-                .setDefaultValue(true)
+                .setDefaultValue(SpaceJoyConfig.DEFAULT_MOB_LABEL)
                 .setSaveConsumer(v -> {
                     SpaceJoyConfig.setMobLabel(v);
                     // 打开时顺手把 EA 自己那套会画错的粒子压掉；关掉时不用管，它本来就是关的。
@@ -132,16 +255,18 @@ public final class SpaceJoyConfigScreen {
         category.addEntry(eb.startBooleanToggle(
                         Component.translatable(K + "offhandTorchGuard"),
                         SpaceJoyConfig.isOffhandTorchGuard())
-                .setDefaultValue(true)
+                .setDefaultValue(SpaceJoyConfig.DEFAULT_OFFHAND_TORCH_GUARD)
                 .setSaveConsumer(SpaceJoyConfig::setOffhandTorchGuard)
                 .setTooltip(Component.translatable(K + "offhandTorchGuard.tip"))
                 .build());
 
-        category.addEntry(eb.startIntSlider(
+        // 用输入框而不是滑块：-1（永远保留）到 16 之间是 18 个整数，滑块拖动很难停在 -1 上。
+        category.addEntry(eb.startIntField(
                         Component.translatable(K + "offhandTorchKeepCount"),
-                        SpaceJoyConfig.getOffhandTorchKeepCount(), 0, SpaceJoyConfig.MAX_TORCH_KEEP)
+                        SpaceJoyConfig.getOffhandTorchKeepCount())
                 .setDefaultValue(SpaceJoyConfig.DEFAULT_TORCH_KEEP)
-                .setTextGetter(v -> Component.translatable(K + "offhandTorchKeepCount.value", v))
+                .setMin(SpaceJoyConfig.MIN_TORCH_KEEP)
+                .setMax(SpaceJoyConfig.MAX_TORCH_KEEP)
                 .setSaveConsumer(SpaceJoyConfig::setOffhandTorchKeepCount)
                 .setTooltip(Component.translatable(K + "offhandTorchKeepCount.tip"))
                 .build());
@@ -171,7 +296,7 @@ public final class SpaceJoyConfigScreen {
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "eliteAbilityDrop"),
                         SpaceJoyConfig.isEliteAbilityDrop())
-                .setDefaultValue(true)
+                .setDefaultValue(SpaceJoyConfig.DEFAULT_ELITE_ABILITY_DROP)
                 .setSaveConsumer(SpaceJoyConfig::setEliteAbilityDrop)
                 .setTooltip(tooltip(K + "eliteAbilityDrop.tip", ok, "BuffMobs + Everlasting Abilities"))
                 .build(), ok));
@@ -205,7 +330,7 @@ public final class SpaceJoyConfigScreen {
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "irisDimensionShaders"),
                         SpaceJoyConfig.isIrisDimensionShaders())
-                .setDefaultValue(true)
+                .setDefaultValue(SpaceJoyConfig.DEFAULT_IRIS_DIMENSION_SHADERS)
                 .setSaveConsumer(v -> {
                     SpaceJoyConfig.setIrisDimensionShaders(v);
                     DimensionSwitchController controller = IrisDimClient.controller();
@@ -235,39 +360,42 @@ public final class SpaceJoyConfigScreen {
         }
 
         ModSettings settings = controller.config().settings;
+        // 默认值直接取一个刚构造出来的实例：ModSettings 的默认值就写在字段初始化里，
+        // 这样界面的「重置」按钮永远不会和真正的默认值对不上，也不用再维护一份常量。
+        ModSettings defaults = new ModSettings();
         boolean on = iris;
 
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "iris.applyOnWorldEnter"), settings.applyOnWorldEnter)
-                .setDefaultValue(true)
+                .setDefaultValue(defaults.applyOnWorldEnter)
                 .setSaveConsumer(v -> settings.applyOnWorldEnter = v)
                 .setTooltip(tooltip(K + "iris.applyOnWorldEnter.tip", on, "Iris"))
                 .build(), on));
 
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "iris.applyOnDimensionChange"), settings.applyOnDimensionChange)
-                .setDefaultValue(true)
+                .setDefaultValue(defaults.applyOnDimensionChange)
                 .setSaveConsumer(v -> settings.applyOnDimensionChange = v)
                 .setTooltip(tooltip(K + "iris.applyOnDimensionChange.tip", on, "Iris"))
                 .build(), on));
 
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "iris.applyDuringLevelLoading"), settings.applyDuringLevelLoading)
-                .setDefaultValue(true)
+                .setDefaultValue(defaults.applyDuringLevelLoading)
                 .setSaveConsumer(v -> settings.applyDuringLevelLoading = v)
                 .setTooltip(tooltip(K + "iris.applyDuringLevelLoading.tip", on, "Iris"))
                 .build(), on));
 
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "iris.restoreOnWorldExit"), settings.restoreOnWorldExit)
-                .setDefaultValue(false)
+                .setDefaultValue(defaults.restoreOnWorldExit)
                 .setSaveConsumer(v -> settings.restoreOnWorldExit = v)
                 .setTooltip(tooltip(K + "iris.restoreOnWorldExit.tip", on, "Iris"))
                 .build(), on));
 
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "iris.reloadOnlyWhenChanged"), settings.reloadOnlyWhenChanged)
-                .setDefaultValue(true)
+                .setDefaultValue(defaults.reloadOnlyWhenChanged)
                 .setSaveConsumer(v -> settings.reloadOnlyWhenChanged = v)
                 .setTooltip(tooltip(K + "iris.reloadOnlyWhenChanged.tip", on, "Iris"))
                 .build(), on));
@@ -275,14 +403,14 @@ public final class SpaceJoyConfigScreen {
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "iris.trackDiscoveredDimensions"),
                         settings.trackDiscoveredDimensions)
-                .setDefaultValue(true)
+                .setDefaultValue(defaults.trackDiscoveredDimensions)
                 .setSaveConsumer(v -> settings.trackDiscoveredDimensions = v)
                 .setTooltip(tooltip(K + "iris.trackDiscoveredDimensions.tip", on, "Iris"))
                 .build(), on));
 
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "iris.announceInChat"), settings.announceInChat)
-                .setDefaultValue(true)
+                .setDefaultValue(defaults.announceInChat)
                 .setSaveConsumer(v -> settings.announceInChat = v)
                 .setTooltip(tooltip(K + "iris.announceInChat.tip", on, "Iris"))
                 .build(), on));
@@ -354,9 +482,12 @@ public final class SpaceJoyConfigScreen {
     // -------------------------------------------------------------------------------------
 
     private static AbstractConfigListEntry toggle(ConfigEntryBuilder eb, String key, boolean value,
+                                                  boolean defaultValue,
                                                   java.util.function.Consumer<Boolean> setter, String tipKey) {
         return eb.startBooleanToggle(Component.translatable(key), value)
-                .setDefaultValue(true)
+                // 这里必须是该项真正的默认值：Cloth 的重置按钮是拿「当前值」和它比对来决定灰不灰的，
+                // 写死 true 的话，默认关闭的项会反过来在「是」的时候变灰。
+                .setDefaultValue(defaultValue)
                 .setSaveConsumer(setter)
                 .setTooltip(Component.translatable(tipKey))
                 .build();

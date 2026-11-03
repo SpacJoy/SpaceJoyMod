@@ -4,7 +4,26 @@
   "package": "net.spacejoy.mod.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
-    "EntityRendererMixin"
+    "EntityRendererMixin",
+    "MixinLocalPlayerPermanentSprint",
+    "MixinLocalPlayerAutoSwitchElytra",
+    "MixinWindowInventoryScale",
+    "MixinMouseHandlerAngelBlock",
+    "MixinPlayerMenuItemSpectatorTeleport",
+    "MixinTeleportToPlayerMenuCategorySpectatorTeleport",
+    "freecam.MixinMinecraftFreeCamera",
+    "freecam.MixinCameraFreeCamera",
+    "freecam.MixinGameRendererFreeCamera",
+    "freecam.MixinLivingEntityFreeCamera",
+    "freecam.MixinPlayerFreeCamera",
+    "freecam.MixinLocalPlayerFreeCamera",
+    "freecam.MixinMultiPlayerGameModeFreeCamera",
+    "freecam.MixinLevelExtractorFreeCamera",
+    "freecam.MixinLevelRendererFreeCamera",
+    "freecam.MixinEntityFreeCamera",
+    "freecam.MixinHudFreeCamera",
+    "freecam.MixinFirstPersonHandsAndItemsFreeCamera",
+    "freecam.MixinFirstPersonHandsAndItemsRendererFreeCamera"
   ],
   "injectors": {
     "defaultRequire": 1

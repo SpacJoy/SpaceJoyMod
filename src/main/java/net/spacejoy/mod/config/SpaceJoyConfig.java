@@ -29,23 +29,82 @@ public final class SpaceJoyConfig {
 
     private static boolean loaded;
 
-    private static boolean enabled = true;
-    private static boolean debugLog = true;
-    private static boolean polymerRecipeFix = true;
-    private static boolean irisOutlineFix = false;
-    private static boolean jadeAbilityDisplay = true;
-    private static boolean mobLabel = true;
-    private static boolean irisDimensionShaders = true;
-    private static boolean eliteAbilityDrop = true;
+    // ---- 默认值 ----
+    // 字段初始化和配置界面的「重置」按钮都读这里，只维护一份。
+    // Cloth 的重置按钮是拿「当前值」和「默认值」比对来决定灰不灰的，两边对不上就会出现
+    // 「本来默认关闭的项，反而在开启状态下按钮变灰」这种反向表现。
+    public static final boolean DEFAULT_ENABLED = true;
+    public static final boolean DEFAULT_DEBUG_LOG = true;
+    public static final boolean DEFAULT_POLYMER_RECIPE_FIX = true;
+    public static final boolean DEFAULT_IRIS_OUTLINE_FIX = false;
+    public static final boolean DEFAULT_JADE_ABILITY_DISPLAY = true;
+    public static final boolean DEFAULT_MOB_LABEL = true;
+    public static final boolean DEFAULT_IRIS_DIMENSION_SHADERS = true;
+    public static final boolean DEFAULT_ELITE_ABILITY_DROP = true;
+    public static final boolean DEFAULT_OFFHAND_TORCH_GUARD = true;
+    public static final boolean DEFAULT_FREE_CAMERA = false;
+    public static final boolean DEFAULT_FREE_CAMERA_PLAYER_INPUTS = false;
+    public static final boolean DEFAULT_FREE_CAMERA_SHOW_HANDS = false;
+    public static final boolean DEFAULT_FREE_CAMERA_SHOW_HOTBAR = true;
+    public static final boolean DEFAULT_FREE_CAMERA_SHOW_STATUS_BARS = true;
+    public static final boolean DEFAULT_PERMANENT_SPRINT = false;
+    public static final boolean DEFAULT_ANGEL_BLOCK = false;
+    public static final boolean DEFAULT_AUTO_SWITCH_ELYTRA = false;
+    public static final boolean DEFAULT_CUSTOM_INVENTORY_GUI_SCALE = false;
+    public static final boolean DEFAULT_SPECTATOR_TELEPORT = false;
+
+    private static boolean enabled = DEFAULT_ENABLED;
+    private static boolean debugLog = DEFAULT_DEBUG_LOG;
+    private static boolean polymerRecipeFix = DEFAULT_POLYMER_RECIPE_FIX;
+    private static boolean irisOutlineFix = DEFAULT_IRIS_OUTLINE_FIX;
+    private static boolean jadeAbilityDisplay = DEFAULT_JADE_ABILITY_DISPLAY;
+    private static boolean mobLabel = DEFAULT_MOB_LABEL;
+    private static boolean irisDimensionShaders = DEFAULT_IRIS_DIMENSION_SHADERS;
+    private static boolean eliteAbilityDrop = DEFAULT_ELITE_ABILITY_DROP;
     private static String eliteAbilityMinRarity = "RARE";
 
-    /** 副手火把保留数的默认值：留最后一支。 */
-    public static final int DEFAULT_TORCH_KEEP = 1;
+    /** 副手火把保留数：-1 表示不管剩几支都放行，即永远往副手留火把。 */
+    public static final int TORCH_KEEP_ALWAYS = -1;
+    /** 副手火把保留数的默认值：永远保留。 */
+    public static final int DEFAULT_TORCH_KEEP = TORCH_KEEP_ALWAYS;
     /** 保留数上限。再高就等于「副手永远不放火把」，不如直接关掉功能。 */
     public static final int MAX_TORCH_KEEP = 16;
+    /** 保留数下限：只允许 -1（永远保留）这一种负值。 */
+    public static final int MIN_TORCH_KEEP = TORCH_KEEP_ALWAYS;
 
-    private static boolean offhandTorchGuard = true;
+    private static boolean offhandTorchGuard = DEFAULT_OFFHAND_TORCH_GUARD;
     private static int offhandTorchKeepCount = DEFAULT_TORCH_KEEP;
+
+    // ---- 自由相机（移植自 tweakeroo 的 tweakFreeCamera 及其关联设置）----
+    private static boolean freeCamera = DEFAULT_FREE_CAMERA;
+    /** 自由相机开着时，本体还能不能操作（挖方块、右键、攻击）。默认不能。 */
+    private static boolean freeCameraPlayerInputs = DEFAULT_FREE_CAMERA_PLAYER_INPUTS;
+    /**
+     * 自由相机开着时第一人称手默认不画：相机已经飞出去了，画面里还挂着一双站在原地的胳膊
+     * 没有意义。快捷栏和状态栏仍要留着，那是玩家判断自身状态的信息。
+     */
+    private static boolean freeCameraShowHands = DEFAULT_FREE_CAMERA_SHOW_HANDS;
+    private static boolean freeCameraShowHotbar = DEFAULT_FREE_CAMERA_SHOW_HOTBAR;
+    private static boolean freeCameraShowStatusBars = DEFAULT_FREE_CAMERA_SHOW_STATUS_BARS;
+
+    /** 浮空放置方块（Angel Block）的落点距离默认值，对应 tweakeroo 的 angelBlockPlacementDistance。 */
+    public static final int DEFAULT_ANGEL_BLOCK_DISTANCE = 3;
+    public static final int MIN_ANGEL_BLOCK_DISTANCE = 1;
+    public static final int MAX_ANGEL_BLOCK_DISTANCE = 5;
+
+    /** 背包界面缩放的默认值与取值范围，对应 tweakeroo 的 customInventoryGuiScale。 */
+    public static final int DEFAULT_INVENTORY_SCALE = 2;
+    public static final int MIN_INVENTORY_SCALE = 1;
+    public static final int MAX_INVENTORY_SCALE = 10;
+
+    // ---- 其它 tweak 移植 ----
+    private static boolean permanentSprint = DEFAULT_PERMANENT_SPRINT;
+    private static boolean angelBlock = DEFAULT_ANGEL_BLOCK;
+    private static int angelBlockPlacementDistance = DEFAULT_ANGEL_BLOCK_DISTANCE;
+    private static boolean autoSwitchElytra = DEFAULT_AUTO_SWITCH_ELYTRA;
+    private static boolean customInventoryGuiScale = DEFAULT_CUSTOM_INVENTORY_GUI_SCALE;
+    private static int customInventoryScale = DEFAULT_INVENTORY_SCALE;
+    private static boolean spectatorTeleport = DEFAULT_SPECTATOR_TELEPORT;
 
     private SpaceJoyConfig() {
     }
@@ -74,6 +133,18 @@ public final class SpaceJoyConfig {
             eliteAbilityMinRarity = readString(root, "eliteAbilityMinRarity", eliteAbilityMinRarity);
             offhandTorchGuard = readBool(root, "offhandTorchGuard", offhandTorchGuard);
             offhandTorchKeepCount = clampKeep(readInt(root, "offhandTorchKeepCount", offhandTorchKeepCount));
+            freeCamera = readBool(root, "freeCamera", freeCamera);
+            freeCameraPlayerInputs = readBool(root, "freeCameraPlayerInputs", freeCameraPlayerInputs);
+            freeCameraShowHands = readBool(root, "freeCameraShowHands", freeCameraShowHands);
+            freeCameraShowHotbar = readBool(root, "freeCameraShowHotbar", freeCameraShowHotbar);
+            freeCameraShowStatusBars = readBool(root, "freeCameraShowStatusBars", freeCameraShowStatusBars);
+            permanentSprint = readBool(root, "permanentSprint", permanentSprint);
+            angelBlock = readBool(root, "angelBlock", angelBlock);
+            angelBlockPlacementDistance = clampDistance(readInt(root, "angelBlockPlacementDistance", angelBlockPlacementDistance));
+            autoSwitchElytra = readBool(root, "autoSwitchElytra", autoSwitchElytra);
+            customInventoryGuiScale = readBool(root, "customInventoryGuiScale", customInventoryGuiScale);
+            customInventoryScale = clampScale(readInt(root, "customInventoryScale", customInventoryScale));
+            spectatorTeleport = readBool(root, "spectatorTeleport", spectatorTeleport);
         } catch (Exception e) {
             // 配置文件坏了就退回默认值，不要让模组起不来。
             SpaceJoyMod.LOGGER.warn("spacejoy-mod config unreadable, using defaults", e);
@@ -94,6 +165,18 @@ public final class SpaceJoyConfig {
         root.addProperty("eliteAbilityMinRarity", eliteAbilityMinRarity);
         root.addProperty("offhandTorchGuard", offhandTorchGuard);
         root.addProperty("offhandTorchKeepCount", offhandTorchKeepCount);
+        root.addProperty("freeCamera", freeCamera);
+        root.addProperty("freeCameraPlayerInputs", freeCameraPlayerInputs);
+        root.addProperty("freeCameraShowHands", freeCameraShowHands);
+        root.addProperty("freeCameraShowHotbar", freeCameraShowHotbar);
+        root.addProperty("freeCameraShowStatusBars", freeCameraShowStatusBars);
+        root.addProperty("permanentSprint", permanentSprint);
+        root.addProperty("angelBlock", angelBlock);
+        root.addProperty("angelBlockPlacementDistance", angelBlockPlacementDistance);
+        root.addProperty("autoSwitchElytra", autoSwitchElytra);
+        root.addProperty("customInventoryGuiScale", customInventoryGuiScale);
+        root.addProperty("customInventoryScale", customInventoryScale);
+        root.addProperty("spectatorTeleport", spectatorTeleport);
         try {
             Files.createDirectories(path().getParent());
             Files.writeString(path(), GSON.toJson(root));
@@ -126,9 +209,27 @@ public final class SpaceJoyConfig {
         }
     }
 
-    /** 保留数夹到合法区间：负数按 0（等于关掉限制），超过上限按上限。 */
+    /**
+     * 保留数夹到合法区间。
+     *
+     * <p>-1 是「永远保留」的哨兵值，原样放过；其它负数一律当成 -1；
+     * 正数夹到 0（等于不保留）到 {@link #MAX_TORCH_KEEP} 之间。
+     */
     private static int clampKeep(int value) {
-        return Math.max(0, Math.min(MAX_TORCH_KEEP, value));
+        if (value < 0) {
+            return TORCH_KEEP_ALWAYS;
+        }
+        return Math.min(MAX_TORCH_KEEP, value);
+    }
+
+    /** 浮空放置距离夹到 1~5 格，和 tweakeroo 的取值范围一致。 */
+    private static int clampDistance(int value) {
+        return Math.max(MIN_ANGEL_BLOCK_DISTANCE, Math.min(MAX_ANGEL_BLOCK_DISTANCE, value));
+    }
+
+    /** 背包缩放夹到 1~10。 */
+    private static int clampScale(int value) {
+        return Math.max(MIN_INVENTORY_SCALE, Math.min(MAX_INVENTORY_SCALE, value));
     }
 
     private static void ensureLoaded() {
@@ -277,5 +378,129 @@ public final class SpaceJoyConfig {
             }
         }
         return net.minecraft.world.item.Rarity.RARE;
+    }
+
+    // ---- 自由相机 ----
+
+    public static boolean isFreeCamera() {
+        ensureLoaded();
+        return enabled && freeCamera;
+    }
+
+    public static void setFreeCamera(boolean value) {
+        ensureLoaded();
+        freeCamera = value;
+    }
+
+    public static boolean isFreeCameraPlayerInputs() {
+        ensureLoaded();
+        return freeCameraPlayerInputs;
+    }
+
+    public static void setFreeCameraPlayerInputs(boolean value) {
+        ensureLoaded();
+        freeCameraPlayerInputs = value;
+    }
+
+    public static boolean isFreeCameraShowHands() {
+        ensureLoaded();
+        return freeCameraShowHands;
+    }
+
+    public static void setFreeCameraShowHands(boolean value) {
+        ensureLoaded();
+        freeCameraShowHands = value;
+    }
+
+    public static boolean isFreeCameraShowHotbar() {
+        ensureLoaded();
+        return freeCameraShowHotbar;
+    }
+
+    public static void setFreeCameraShowHotbar(boolean value) {
+        ensureLoaded();
+        freeCameraShowHotbar = value;
+    }
+
+    public static boolean isFreeCameraShowStatusBars() {
+        ensureLoaded();
+        return freeCameraShowStatusBars;
+    }
+
+    public static void setFreeCameraShowStatusBars(boolean value) {
+        ensureLoaded();
+        freeCameraShowStatusBars = value;
+    }
+
+    // ---- 其它 tweak ----
+
+    public static boolean isPermanentSprint() {
+        ensureLoaded();
+        return enabled && permanentSprint;
+    }
+
+    public static void setPermanentSprint(boolean value) {
+        ensureLoaded();
+        permanentSprint = value;
+    }
+
+    public static boolean isAngelBlock() {
+        ensureLoaded();
+        return enabled && angelBlock;
+    }
+
+    public static void setAngelBlock(boolean value) {
+        ensureLoaded();
+        angelBlock = value;
+    }
+
+    public static int getAngelBlockPlacementDistance() {
+        ensureLoaded();
+        return angelBlockPlacementDistance;
+    }
+
+    public static void setAngelBlockPlacementDistance(int value) {
+        ensureLoaded();
+        angelBlockPlacementDistance = clampDistance(value);
+    }
+
+    public static boolean isAutoSwitchElytra() {
+        ensureLoaded();
+        return enabled && autoSwitchElytra;
+    }
+
+    public static void setAutoSwitchElytra(boolean value) {
+        ensureLoaded();
+        autoSwitchElytra = value;
+    }
+
+    public static boolean isCustomInventoryGuiScale() {
+        ensureLoaded();
+        return enabled && customInventoryGuiScale;
+    }
+
+    public static void setCustomInventoryGuiScale(boolean value) {
+        ensureLoaded();
+        customInventoryGuiScale = value;
+    }
+
+    public static int getCustomInventoryScale() {
+        ensureLoaded();
+        return customInventoryScale;
+    }
+
+    public static void setCustomInventoryScale(int value) {
+        ensureLoaded();
+        customInventoryScale = clampScale(value);
+    }
+
+    public static boolean isSpectatorTeleport() {
+        ensureLoaded();
+        return enabled && spectatorTeleport;
+    }
+
+    public static void setSpectatorTeleport(boolean value) {
+        ensureLoaded();
+        spectatorTeleport = value;
     }
 }

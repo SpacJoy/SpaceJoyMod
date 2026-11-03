@@ -67,6 +67,11 @@ processResources {
     }
 }
 
+// 自由相机要打开 Hud$ContextualInfo 的可见性（它是包级类），只能走 access widener。
+loom {
+    accessWidenerPath = file('src/main/resources/spacejoy_mod.accesswidener')
+}
+
 // 目标 Java 版本用 toolchain 声明，环境 JDK 低于目标时由 foojay 自动 provision。
 java {
     withSourcesJar()

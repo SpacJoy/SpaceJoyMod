@@ -23,6 +23,12 @@ public final class SpaceJoyMixinPlugin implements IMixinConfigPlugin {
             "net.spacejoy.mod.mixin.IrisLoggingMixin"
     );
     private static final String POLYMER_JEI_MIXIN = "net.spacejoy.mod.mixin.PolymerJeiCompatibilityMixin";
+    /**
+     * 自由相机在装了 Sodium 时需要额外把相机停留过的区块标脏 ——
+     * Sodium 自己接管了可见区块的选取，原版那条 path 不走了。
+     */
+    private static final String SODIUM_FREE_CAMERA_MIXIN =
+            "net.spacejoy.mod.mixin.freecam.MixinLevelRendererFreeCameraSodium";
 
     @Override
     public void onLoad(String mixinPackage) {
@@ -41,6 +47,9 @@ public final class SpaceJoyMixinPlugin implements IMixinConfigPlugin {
         if (POLYMER_JEI_MIXIN.equals(mixinClassName)) {
             return FabricLoader.getInstance().isModLoaded("polymer-core")
                     && FabricLoader.getInstance().isModLoaded("jei");
+        }
+        if (SODIUM_FREE_CAMERA_MIXIN.equals(mixinClassName)) {
+            return FabricLoader.getInstance().isModLoaded("sodium");
         }
         return true;
     }

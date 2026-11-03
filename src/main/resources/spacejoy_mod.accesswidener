@@ -1,0 +1,8 @@
+accessWidener v2 official
+
+# 自由相机要复用 Hud 的「状态栏隐藏」逻辑，ContextualInfo 是包级类，得开放可见性。
+accessible class net/minecraft/client/gui/Hud$ContextualInfo
+
+# 快捷键页要显示某个按键当前绑的是哪个键。key 是 protected，只有 getDefaultKey()，
+# 拿不到「当前值」，所以这里开放字段读取。
+accessible field net/minecraft/client/KeyMapping key Lcom/mojang/blaze3d/platform/InputConstants$Key;

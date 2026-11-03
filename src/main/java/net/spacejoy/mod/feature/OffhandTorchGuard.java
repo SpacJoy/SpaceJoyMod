@@ -34,8 +34,8 @@ import net.spacejoy.mod.config.SpaceJoyConfig;
  * 由客户端入口点 {@code net.spacejoy.mod.client.SpaceJoyClient} 在启动时填进来。
  */
 public final class OffhandTorchGuard {
-    /** 被拦下时的提示回调；服务端上保持空实现。 */
-    private static IntConsumer feedback = keep -> {};
+    /** 被拦下时的提示回调，参数是副手火把的**实际剩余数量**；服务端上保持空实现。 */
+    private static IntConsumer feedback = remaining -> {};
 
     private OffhandTorchGuard() {
     }
@@ -47,7 +47,7 @@ public final class OffhandTorchGuard {
 
     /** 客户端入口点在启动时调用，把「被拦下」的提示接上。 */
     public static void setFeedback(IntConsumer consumer) {
-        feedback = consumer == null ? keep -> {} : consumer;
+        feedback = consumer == null ? remaining -> {} : consumer;
     }
 
     private static InteractionResult onUseBlock(Player player, Level level, InteractionHand hand, BlockHitResult hit) {
@@ -57,9 +57,9 @@ public final class OffhandTorchGuard {
         if (!SpaceJoyConfig.isEnabled() || !SpaceJoyConfig.isOffhandTorchGuard()) {
             return InteractionResult.PASS;
         }
-        // 0 表示不保留，等于关掉这条限制。
+        // -1 表示「永远保留火把」，任何数量都不拦。
         int keep = SpaceJoyConfig.getOffhandTorchKeepCount();
-        if (keep <= 0) {
+        if (keep == SpaceJoyConfig.TORCH_KEEP_ALWAYS) {
             return InteractionResult.PASS;
         }
         // 创造模式物品不会真的减少，拦下来只会让人困惑。
@@ -71,8 +71,9 @@ public final class OffhandTorchGuard {
             return InteractionResult.PASS;
         }
         // 只有客户端那一次给提示；服务端那份不发，否则同一次点击会提示两遍。
+        // 提示里报的是「现在还剩几支」，不是配置值，否则玩家会看到跟手里对不上的数字。
         if (level.isClientSide()) {
-            feedback.accept(keep);
+            feedback.accept(stack.getCount());
         }
         return InteractionResult.FAIL;
     }
