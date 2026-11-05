@@ -419,6 +419,14 @@ public final class SpaceJoyConfigScreen {
                 .setSaveConsumer(v -> SpaceJoyClientNetwork.sendConfig("waypointEnabled", String.valueOf(v)))
                 .setTooltip(Component.translatable(K + "waypointTeleport.tip"))
                 .build(), canEdit));
+        category.addEntry(gate(eb.startBooleanToggle(
+                        Component.translatable(K + "quietDisconnectEncodeError"),
+                        SpaceJoyServerConfig.isQuietDisconnectEncodeError())
+                .setDefaultValue(SpaceJoyServerConfig.DEFAULT_QUIET_DISCONNECT_ENCODE_ERROR)
+                .setSaveConsumer(v -> SpaceJoyClientNetwork.sendConfig(
+                        "quietDisconnectEncodeError", String.valueOf(v)))
+                .setTooltip(Component.translatable(K + "quietDisconnectEncodeError.tip"))
+                .build(), canEdit));
     }
 
     // -------------------------------------------------------------------------------------

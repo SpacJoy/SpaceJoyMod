@@ -225,5 +225,7 @@
   "spacejoy_mod.config.server.notOp": "你不是管理员，这些设置无法修改（仅可查看）。",
   "spacejoy_mod.config.waypointTeleport": "小地图路径点传送",
   "spacejoy_mod.config.waypointTeleport.tip": "开启后，玩家在 Xaero 地图上创建的正式路径点会登记到服务端，点「传送到路径点」即可非 OP 传送。关闭时登记与传送一起失效。只认登记过的坐标，非 OP 手敲任意坐标传不了；大地图右键任意位置传送不受此项控制。需客户端把小地图传送命令设为 /sjwp {x} {y} {z}。",
-  "spacejoy_mod.config.server.requiresOp": "修改这些设置需要管理员权限（OP）。"
+  "spacejoy_mod.config.server.requiresOp": "修改这些设置需要管理员权限（OP）。",
+  "spacejoy_mod.config.quietDisconnectEncodeError": "静音断线包编码报错",
+  "spacejoy_mod.config.quietDisconnectEncodeError.tip": "开启后，服务端在玩家异常断开时会尝试补发一个 disconnect 包；如果这条连接已经不在 play 协议下，编码会失败并在控制台刷一大段 ERROR 堆栈（Sending unknown packet 'clientbound/minecraft:disconnect'）。这个开关只在日志层拦掉这一条，发包行为和断开流程完全不变，其它包的错误照常输出。"
 }

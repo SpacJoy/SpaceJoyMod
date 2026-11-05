@@ -13,7 +13,8 @@ public final class SpaceJoyPackets {
     /** 服务端 → 客户端：配置快照 + 这个玩家能不能改（是不是 OP）。 */
     public record ConfigS2C(boolean canEdit, boolean waypointEnabled,
                             boolean eliteAbilityDrop, String eliteAbilityMinRarity,
-                            boolean polymerRecipeFix, boolean taczConcurrencyFix)
+                            boolean polymerRecipeFix, boolean taczConcurrencyFix,
+                            boolean quietDisconnectEncodeError)
             implements CustomPacketPayload {
         public static final Type<ConfigS2C> TYPE =
                 new Type<>(Identifier.fromNamespaceAndPath("spacejoy_mod", "config_s2c"));
@@ -26,9 +27,10 @@ public final class SpaceJoyPackets {
                             buf.writeUtf(p.eliteAbilityMinRarity);
                             buf.writeBoolean(p.polymerRecipeFix);
                             buf.writeBoolean(p.taczConcurrencyFix);
+                            buf.writeBoolean(p.quietDisconnectEncodeError);
                         },
                         buf -> new ConfigS2C(buf.readBoolean(), buf.readBoolean(), buf.readBoolean(),
-                                buf.readUtf(), buf.readBoolean(), buf.readBoolean()));
+                                buf.readUtf(), buf.readBoolean(), buf.readBoolean(), buf.readBoolean()));
 
         @Override
         public Type<ConfigS2C> type() {

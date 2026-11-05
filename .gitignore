@@ -5,6 +5,9 @@ build/
 # 第三方模组 jar：构建时从实例 mods 目录同步，仅用于编译
 libs/
 
+# 开发期 runServer/runClient 生成物
+run/
+
 # IDE
 .idea/
 *.iml

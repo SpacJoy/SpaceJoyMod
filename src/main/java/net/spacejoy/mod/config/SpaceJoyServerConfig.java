@@ -34,6 +34,7 @@ public final class SpaceJoyServerConfig {
     public static final String DEFAULT_ELITE_ABILITY_MIN_RARITY = "RARE";
     public static final boolean DEFAULT_POLYMER_RECIPE_FIX = true;
     public static final boolean DEFAULT_TACZ_CONCURRENCY_FIX = true;
+    public static final boolean DEFAULT_QUIET_DISCONNECT_ENCODE_ERROR = true;
 
     private static boolean loaded;
     private static boolean waypointEnabled = DEFAULT_WAYPOINT_ENABLED;
@@ -41,6 +42,7 @@ public final class SpaceJoyServerConfig {
     private static String eliteAbilityMinRarity = DEFAULT_ELITE_ABILITY_MIN_RARITY;
     private static boolean polymerRecipeFix = DEFAULT_POLYMER_RECIPE_FIX;
     private static boolean taczConcurrencyFix = DEFAULT_TACZ_CONCURRENCY_FIX;
+    private static boolean quietDisconnectEncodeError = DEFAULT_QUIET_DISCONNECT_ENCODE_ERROR;
     /** 客户端能不能改服务端设置（由 S2C 下发的 isOp 决定；单人默认 true）。 */
     private static boolean canEdit = true;
 
@@ -64,6 +66,7 @@ public final class SpaceJoyServerConfig {
                 eliteAbilityMinRarity = str(r, "eliteAbilityMinRarity", eliteAbilityMinRarity);
                 polymerRecipeFix = bool(r, "polymerRecipeFix", polymerRecipeFix);
                 taczConcurrencyFix = bool(r, "taczConcurrencyFix", taczConcurrencyFix);
+                quietDisconnectEncodeError = bool(r, "quietDisconnectEncodeError", quietDisconnectEncodeError);
             }
             Path wp = dir().resolve(WP_FILE);
             if (Files.isRegularFile(wp)) {
@@ -94,6 +97,7 @@ public final class SpaceJoyServerConfig {
             r.addProperty("eliteAbilityMinRarity", eliteAbilityMinRarity);
             r.addProperty("polymerRecipeFix", polymerRecipeFix);
             r.addProperty("taczConcurrencyFix", taczConcurrencyFix);
+            r.addProperty("quietDisconnectEncodeError", quietDisconnectEncodeError);
             Files.writeString(dir().resolve(FILE), GSON.toJson(r));
 
             JsonObject w = new JsonObject();
@@ -118,6 +122,7 @@ public final class SpaceJoyServerConfig {
                     eliteAbilityMinRarity = value == null ? DEFAULT_ELITE_ABILITY_MIN_RARITY : value;
             case "polymerRecipeFix" -> polymerRecipeFix = Boolean.parseBoolean(value);
             case "taczConcurrencyFix" -> taczConcurrencyFix = Boolean.parseBoolean(value);
+            case "quietDisconnectEncodeError" -> quietDisconnectEncodeError = Boolean.parseBoolean(value);
             default -> {
                 return;
             }
@@ -128,12 +133,12 @@ public final class SpaceJoyServerConfig {
     public static synchronized ConfigS2C snapshot(boolean op) {
         load();
         return new ConfigS2C(op, waypointEnabled, eliteAbilityDrop, eliteAbilityMinRarity,
-                polymerRecipeFix, taczConcurrencyFix);
+                polymerRecipeFix, taczConcurrencyFix, quietDisconnectEncodeError);
     }
 
     /** 客户端收到 S2C：把服务端的值覆盖到本地，同时记住自己有没有权限改。 */
     public static synchronized void setFromS2C(boolean edit, boolean we, boolean ead,
-                                                String rarity, boolean prf, boolean tcf) {
+                                                String rarity, boolean prf, boolean tcf, boolean qdee) {
         loaded = true;
         canEdit = edit;
         waypointEnabled = we;
@@ -141,6 +146,7 @@ public final class SpaceJoyServerConfig {
         eliteAbilityMinRarity = rarity;
         polymerRecipeFix = prf;
         taczConcurrencyFix = tcf;
+        quietDisconnectEncodeError = qdee;
     }
 
     public static synchronized void addWaypoint(String uuid, String dim, int x, int y, int z) {
@@ -220,6 +226,12 @@ public final class SpaceJoyServerConfig {
     public static synchronized boolean isTaczConcurrencyFix() {
         load();
         return taczConcurrencyFix;
+    }
+
+    /** 是否静音「disconnect 包编码失败」那条 ERROR 日志（只静音日志，不改变发包行为）。 */
+    public static synchronized boolean isQuietDisconnectEncodeError() {
+        load();
+        return quietDisconnectEncodeError;
     }
 
     public static synchronized String getEliteAbilityMinRarityName() {

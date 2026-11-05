@@ -225,5 +225,7 @@
   "spacejoy_mod.config.server.notOp": "You are not an operator; these settings are read-only for you.",
   "spacejoy_mod.config.waypointTeleport": "Minimap waypoint teleport",
   "spacejoy_mod.config.waypointTeleport.tip": "When on, waypoints a player creates on the Xaero map are registered with the server, and 'Teleport to waypoint' works for non-OP players. Turning it off disables both registration and teleport. Only registered coordinates are accepted. Requires the client to set the minimap teleport command to /sjwp {x} {y} {z}.",
-  "spacejoy_mod.config.server.requiresOp": "Editing these settings requires operator (OP) permission."
+  "spacejoy_mod.config.server.requiresOp": "Editing these settings requires operator (OP) permission.",
+  "spacejoy_mod.config.quietDisconnectEncodeError": "Silence disconnect-packet encode errors",
+  "spacejoy_mod.config.quietDisconnectEncodeError.tip": "When a player drops unexpectedly the server tries to send one last disconnect packet. If that connection is no longer in the play protocol, encoding it fails and the console gets a long ERROR stack (Sending unknown packet 'clientbound/minecraft:disconnect'). This option only suppresses that single log line: the packet is still sent and the disconnect flow is unchanged, and errors for every other packet still show up."
 }
