@@ -36,6 +36,9 @@ public final class SpaceJoyMixinPlugin implements IMixinConfigPlugin {
      */
     private static final String SODIUM_FREE_CAMERA_MIXIN =
             "net.spacejoy.mod.mixin.freecam.MixinLevelRendererFreeCameraSodium";
+    /** Xaero 小地图没装时，路径点登记混入连目标类都不存在，必须跳过。 */
+    private static final String XAERO_WAYPOINT_MIXIN =
+            "net.spacejoy.mod.mixin.xaero.XaeroWaypointSetMixin";
 
     @Override
     public void onLoad(String mixinPackage) {
@@ -57,6 +60,9 @@ public final class SpaceJoyMixinPlugin implements IMixinConfigPlugin {
         }
         if (SODIUM_FREE_CAMERA_MIXIN.equals(mixinClassName)) {
             return FabricLoader.getInstance().isModLoaded("sodium");
+        }
+        if (XAERO_WAYPOINT_MIXIN.equals(mixinClassName)) {
+            return FabricLoader.getInstance().isModLoaded("xaerominimap");
         }
         if (mixinClassName.startsWith(TACZ_MIXIN_PACKAGE)) {
             return FabricLoader.getInstance().isModLoaded("tacz");

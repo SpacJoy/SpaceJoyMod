@@ -82,9 +82,9 @@
   "spacejoy_mod.config.mobLabel": "Show ability labels above mobs",
   "spacejoy_mod.config.mobLabel.tip": "Show what a mob can drop above its head, rendered through the vanilla name tag path so blocks occlude it naturally. If the mob is already named, the label moves to the line above. Client side only.",
   "spacejoy_mod.config.offhandTorchGuard": "Keep torches in the off hand",
-  "spacejoy_mod.config.offhandTorchGuard.tip": "Stop placing torches from the off hand once the stack is down to the keep count, so you never run out of light. Only light-emitting torches count (torch, soul torch, copper torch); redstone torches are untouched. The server blocks it too, so a modified client cannot bypass it.",
+  "spacejoy_mod.config.offhandTorchGuard.tip": "Stop placing torches from the off hand once the stack is down to the keep count, so you never run out of light. Only light-emitting torches count (torch, soul torch, copper torch); redstone torches are untouched. Client-side only, works the same on a server.",
   "spacejoy_mod.config.offhandTorchKeepCount": "Keep count",
-  "spacejoy_mod.config.offhandTorchKeepCount.tip": "-1 keeps every torch (default); 0 keeps none, which turns the limit off; 1 to 16 is how many torches the off hand must keep.",
+  "spacejoy_mod.config.offhandTorchKeepCount.tip": "-1 never places torches from the off hand (keeps all, default); 0 keeps none, which turns the limit off; 1 to 16 is how many the off hand must keep. The toggle above is off by default and must be on for this to apply. Client-side only, works the same on a server.",
   "spacejoy_mod.config.permanentSprint": "Permanent sprint",
   "spacejoy_mod.config.permanentSprint.tip": "Holding forward sprints automatically. Tap the sprint key to switch to walking, tap again to switch back; resets when you release forward. Still stops when out of food, using an item, blinded, or hitting a wall.",
   "spacejoy_mod.config.keys.hint": "Changes apply immediately and share the same settings as Options → Controls → Key Binds.",
@@ -219,5 +219,11 @@
   "spacejoy_mod.jade.mob_abilities": "Droppable abilities",
   "spacejoy_mod.offhand_torch.blocked": "Off-hand torches down to %s, kept",
   "spacejoy_mod.sodium.modName": "SpaceJoyMod",
-  "spacejoy_mod.sodium.rules": "Shader rules"
+  "spacejoy_mod.sodium.rules": "Shader rules",
+  "spacejoy_mod.config.tab.server": "Server",
+  "spacejoy_mod.config.server.hint": "These settings change the copy that actually runs on the server. Only an operator (OP) can edit them; non-OP players can view but the entries are locked.",
+  "spacejoy_mod.config.server.notOp": "You are not an operator; these settings are read-only for you.",
+  "spacejoy_mod.config.waypointTeleport": "Minimap waypoint teleport",
+  "spacejoy_mod.config.waypointTeleport.tip": "When on, waypoints a player creates on the Xaero map are registered with the server, and 'Teleport to waypoint' works for non-OP players. Turning it off disables both registration and teleport. Only registered coordinates are accepted. Requires the client to set the minimap teleport command to /sjwp {x} {y} {z}.",
+  "spacejoy_mod.config.server.requiresOp": "Editing these settings requires operator (OP) permission."
 }

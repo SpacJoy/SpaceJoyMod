@@ -47,6 +47,8 @@
     "cloth-config": "*",
     "modmenu": "*",
     "sodium": "*",
-    "tacz": "*"
+    "tacz": "*",
+    "xaerominimap": "*",
+		"simple-warp-tpa-home-back": "*"
   }
 }

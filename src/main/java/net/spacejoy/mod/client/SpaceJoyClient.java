@@ -8,6 +8,8 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.spacejoy.mod.feature.OffhandTorchGuard;
 import net.spacejoy.mod.feature.freecam.SpaceJoyFreeCamera;
+import net.spacejoy.mod.config.SpaceJoyConfigScreen;
+import net.spacejoy.mod.network.SpaceJoyClientNetwork;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -22,11 +24,19 @@ public final class SpaceJoyClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        // 副手火把：只在客户端注册一次，拦住右键连发包都不发，服务端完全不参与。
+        OffhandTorchGuard.init();
         OffhandTorchGuard.setFeedback(SpaceJoyClient::showBlocked);
         SpaceJoyFreeCamera.setFeedback(SpaceJoyClient::showFreeCameraToggled);
+        // 收服务端权威配置、上报路径点增删。
+        SpaceJoyClientNetwork.init();
 
         // 自由相机每 tick 推进一次：相机自己飞，或者跟着玩家走。
-        ClientTickEvents.END_CLIENT_TICK.register(client -> SpaceJoyFreeCamera.onClientTick());
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            SpaceJoyFreeCamera.onClientTick();
+            // 权限变化后待重建的配置界面：等它重新成为当前界面时再建。
+            SpaceJoyConfigScreen.tickRefresh();
+        });
 
         // 刚进世界时把自由相机清成关闭 —— 上次退出时是开着的，也不该一进来就接管视角。
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> SpaceJoyFreeCamera.onJoinWorld());

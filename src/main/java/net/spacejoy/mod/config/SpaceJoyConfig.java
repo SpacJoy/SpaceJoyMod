@@ -42,7 +42,7 @@ public final class SpaceJoyConfig {
     public static final boolean DEFAULT_MOB_LABEL = true;
     public static final boolean DEFAULT_IRIS_DIMENSION_SHADERS = true;
     public static final boolean DEFAULT_ELITE_ABILITY_DROP = true;
-    public static final boolean DEFAULT_OFFHAND_TORCH_GUARD = true;
+    public static final boolean DEFAULT_OFFHAND_TORCH_GUARD = false;
     public static final boolean DEFAULT_FREE_CAMERA = false;
     public static final boolean DEFAULT_FREE_CAMERA_PLAYER_INPUTS = false;
     public static final boolean DEFAULT_FREE_CAMERA_SHOW_HANDS = false;
@@ -65,9 +65,9 @@ public final class SpaceJoyConfig {
     private static boolean eliteAbilityDrop = DEFAULT_ELITE_ABILITY_DROP;
     private static String eliteAbilityMinRarity = "RARE";
 
-    /** 副手火把保留数：-1 表示不管剩几支都放行，即永远往副手留火把。 */
+    /** 副手火把保留数哨兵：-1 = 整摞都不许从副手放置（永远留火把）；0 = 不拦。 */
     public static final int TORCH_KEEP_ALWAYS = -1;
-    /** 副手火把保留数的默认值：永远保留。 */
+    /** 副手火把保留数的默认值：-1（整摞都不许从副手放置）。功能默认关闭，打开时按这个最保守的值来。 */
     public static final int DEFAULT_TORCH_KEEP = TORCH_KEEP_ALWAYS;
     /** 保留数上限。再高就等于「副手永远不放火把」，不如直接关掉功能。 */
     public static final int MAX_TORCH_KEEP = 16;

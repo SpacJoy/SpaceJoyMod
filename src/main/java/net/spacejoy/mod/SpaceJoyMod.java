@@ -5,7 +5,8 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.spacejoy.mod.compat.EliteAbilityDrop;
 import net.spacejoy.mod.compat.MobGlow;
 import net.spacejoy.mod.config.SpaceJoyConfig;
-import net.spacejoy.mod.feature.OffhandTorchGuard;
+import net.spacejoy.mod.config.SpaceJoyServerConfig;
+import net.spacejoy.mod.network.SpaceJoyNetwork;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +51,8 @@ public class SpaceJoyMod implements ModInitializer {
         }
         MobGlow.init();
         EliteAbilityDrop.init();
-        OffhandTorchGuard.init();
+        // 副手火把是纯客户端功能，不在这里注册（见 SpaceJoyClient）。
+        SpaceJoyServerConfig.load();
+        SpaceJoyNetwork.init();
     }
 }

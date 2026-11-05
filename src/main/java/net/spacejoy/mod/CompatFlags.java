@@ -14,6 +14,8 @@ public final class CompatFlags {
     public static final boolean TACZ_LOADED = FabricLoader.getInstance().isModLoaded("tacz");
     public static final boolean IRIS_LOADED = FabricLoader.getInstance().isModLoaded("iris");
     public static final boolean CLOTH_CONFIG_LOADED = FabricLoader.getInstance().isModLoaded("cloth-config");
+    /** simple-warp-tpa-home-back：路径点传送要复用它记 /back 返回点、走它的传送通道。 */
+    public static final boolean SWTHB_LOADED = FabricLoader.getInstance().isModLoaded("simple-warp-tpa-home-back");
     public static final boolean MODMENU_LOADED = FabricLoader.getInstance().isModLoaded("modmenu");
 
     private CompatFlags() {

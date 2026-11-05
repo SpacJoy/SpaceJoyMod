@@ -12,6 +12,7 @@ import net.minecraft.world.level.gamerules.GameRules;
 import net.spacejoy.mod.CompatFlags;
 import net.spacejoy.mod.SpaceJoyMod;
 import net.spacejoy.mod.config.SpaceJoyConfig;
+import net.spacejoy.mod.config.SpaceJoyServerConfig;
 
 /**
  * BuffMobs 精英生物 + Everlasting Abilities 的联动：精英死时必掉一个高稀有度能力图腾。
@@ -54,7 +55,7 @@ public final class EliteAbilityDrop {
         if (!(mob.level() instanceof ServerLevel level)) {
             return;
         }
-        if (!SpaceJoyConfig.isEnabled() || !SpaceJoyConfig.isEliteAbilityDrop()) {
+        if (!SpaceJoyConfig.isEnabled() || !SpaceJoyServerConfig.isEliteAbilityDrop()) {
             return;
         }
         // 尊重 doMobLoot：玩家关掉生物掉落时，精英也不该凭空吐东西。
@@ -66,7 +67,7 @@ public final class EliteAbilityDrop {
         }
 
         ItemStack totem = EACompat.createEliteTotem(level,
-                SpaceJoyConfig.getEliteAbilityMinRarity(), level.getRandom());
+                SpaceJoyServerConfig.getEliteAbilityMinRarity(), level.getRandom());
         if (totem.isEmpty()) {
             return;
         }

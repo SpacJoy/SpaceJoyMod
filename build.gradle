@@ -28,6 +28,10 @@ tasks.register('syncLibs', Copy) {
         include '*jei-26.3-fabric*.jar'
         // TaCZ 只用于编译并发修复混入（DataHolder.dataMap 换成 ConcurrentHashMap）。
         include 'TACZ-Refabricated-*.jar'
+        // Xaero 小地图：只在编译期用于 WaypointSet 混入，运行时是软依赖。
+        include '*xaerominimap*.jar'
+        // simple-warp-tpa-home-back：/sjwp 复用它记返回点、走它的传送通道，运行时软依赖。
+        include 'simple-warp-tpa-home-back-*.jar'
         rename { String name ->
             if (name.startsWith('Jade-')) return 'jade.jar'
             if (name.contains('everlastingabilities')) return 'everlastingabilities.jar'
@@ -38,6 +42,8 @@ tasks.register('syncLibs', Copy) {
             if (name.startsWith('iris-fabric')) return 'iris.jar'
             if (name.contains('jei-26.3-fabric')) return 'jei.jar'
             if (name.startsWith('TACZ-Refabricated-')) return 'tacz.jar'
+            if (name.contains('xaerominimap')) return 'xaerominimap.jar'
+            if (name.startsWith('simple-warp-tpa-home-back-')) return 'swthb.jar'
             return 'cyclopscore.jar'
         }
     }
@@ -57,7 +63,8 @@ dependencies {
     // Loom 的 mod 元数据解析，能直接吃实例里的那个 jar。
     compileOnly files('libs/jade.jar', 'libs/everlastingabilities.jar', 'libs/cyclopscore.jar',
             'libs/cloth-config.jar', 'libs/modmenu.jar', 'libs/sodium.jar',
-            'libs/iris.jar', 'libs/jei.jar', 'libs/buffmobs.jar', 'libs/tacz.jar')
+            'libs/iris.jar', 'libs/jei.jar', 'libs/buffmobs.jar', 'libs/tacz.jar',
+            'libs/xaerominimap.jar', 'libs/swthb.jar')
 }
 
 tasks.named('compileJava').configure {

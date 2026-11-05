@@ -7,6 +7,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.runtime.IIngredientManager;
 import net.spacejoy.mod.config.SpaceJoyConfig;
+import net.spacejoy.mod.config.SpaceJoyServerConfig;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
@@ -45,7 +46,7 @@ public abstract class PolymerJeiCompatibilityMixin {
     )
     private static void spacejoy$skipEmptyIngredientSync(IIngredientManager manager, IIngredientType<?> type,
                                                          Collection<?> ingredients, Operation<Void> original) {
-        if (!SpaceJoyConfig.isEnabled() || !SpaceJoyConfig.isPolymerRecipeFix()) {
+        if (!SpaceJoyConfig.isEnabled() || !SpaceJoyServerConfig.isPolymerRecipeFix()) {
             original.call(manager, type, ingredients);
             return;
         }

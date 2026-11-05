@@ -149,6 +149,39 @@ public final class SpaceJoyFreeCamera {
         return SpaceJoyConfig.isFreeCamera() && !SpaceJoyConfig.isFreeCameraPlayerInputs();
     }
 
+    /**
+     * 目标是不是「玩家自己」或「相机实体」。
+     *
+     * <p>{@link FreeCameraEntity#getId()} 直接返回原玩家的网络 id，所以服务端收到攻击包时
+     * 是按玩家 id 去查实体的：查不到 → {@code invalid_entity_attacked} 断线（日志里那句
+     * 「tried to attack an invalid entity」），查到了是自己 → 同样拒绝。
+     *
+     * <p>因此这类目标必须一律拦掉，不能只看 {@link #shouldPreventPlayerInputs()}：
+     * 那个开关只管「本体能不能操作」，管不到「准星落在相机上」这种自伤发包。
+     */
+    public static boolean isSelfOrCameraTarget(Entity target) {
+        if (target == null) {
+            return false;
+        }
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) {
+            // 没有玩家就没有可攻击的自己，交给原版逻辑。
+            return false;
+        }
+
+        if (target == mc.player || target instanceof FreeCameraEntity) {
+            return true;
+        }
+
+        if (camera != null && target == camera) {
+            return true;
+        }
+
+        // 相机复用了玩家的 id，其它路径可能拿到包装过的同 id 实体。
+        return target.getId() == mc.player.getId();
+    }
+
     public static boolean originalCameraWasPlayer() {
         return originalCameraWasPlayer;
     }

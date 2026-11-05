@@ -5,6 +5,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.spacejoy.mod.config.SpaceJoyConfig;
+import net.spacejoy.mod.config.SpaceJoyServerConfig;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -43,7 +44,7 @@ public abstract class BaseIngredientCodecMixin {
         cancellable = true
     )
     private void spacejoy$fallbackWhenNoPacketContext(RegistryFriendlyByteBuf buf, Ingredient value, CallbackInfo ci) {
-        if (!SpaceJoyConfig.isEnabled() || !SpaceJoyConfig.isPolymerRecipeFix()) {
+        if (!SpaceJoyConfig.isEnabled() || !SpaceJoyServerConfig.isPolymerRecipeFix()) {
             return;
         }
         if (PacketContext.get() == null) {

@@ -33,10 +33,20 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(MultiPlayerGameMode.class)
 public abstract class MixinMultiPlayerGameModeFreeCamera {
 
-    /** 左键攻击：必须在 HEAD 拦，方法体第一句就是把攻击包发出去。 */
+    /**
+     * 左键攻击：必须在 HEAD 拦，方法体第一句就是把攻击包发出去。
+     *
+     * <p>相机实体的 {@code getId()} 复用原玩家的 id，所以「准星落在相机上」和
+     * 「攻击自己」在服务端看来都是同一个 id。原版 {@code ServerGamePacketListenerImpl.handleAttack}
+     * 查不到这个 id 对应的实体，就按 {@code invalid_entity_attacked} 直接断线。
+     *
+     * <p>因此这里除了「本体不可操作」的常规拦截，还要单独挡掉「目标是玩家自己 / 相机实体 /
+     * 同一个网络 id」的情况 —— 即使 {@code freeCameraPlayerInputs} 放开了本体操作也不放行。
+     */
     @Inject(method = "attack", at = @At("HEAD"), cancellable = true)
     private void spacejoy$blockAttack(Player player, Entity target, CallbackInfo ci) {
-        if (SpaceJoyFreeCamera.shouldPreventPlayerInputs()) {
+        if (SpaceJoyFreeCamera.shouldPreventPlayerInputs()
+                || SpaceJoyFreeCamera.isSelfOrCameraTarget(target)) {
             ci.cancel();
         }
     }

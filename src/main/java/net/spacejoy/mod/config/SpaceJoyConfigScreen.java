@@ -13,6 +13,8 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Rarity;
 import net.spacejoy.mod.CompatFlags;
+import net.spacejoy.mod.network.SpaceJoyClientNetwork;
+import net.spacejoy.mod.config.SpaceJoyServerConfig;
 import net.spacejoy.mod.irisdim.IrisDimClient;
 import net.spacejoy.mod.irisdim.client.DimensionSwitchController;
 import net.spacejoy.mod.irisdim.client.gui.ConfigScreen;
@@ -36,14 +38,34 @@ public final class SpaceJoyConfigScreen {
     private SpaceJoyConfigScreen() {
     }
 
+    /** 当前由本类打开的那个界面（用来在权限变化时原地重建）。 */
+    private static Screen openScreen;
+    /** 它的父界面：重建时复用，否则关掉会掉进一个空界面。 */
+    private static Screen openParent;
+    /** 有「权限变了」待处理：重建要等界面重新成为当前界面才做，见 tickRefresh()。 */
+    private static boolean refreshPending;
+
     public static Screen create(Screen parent) {
         boolean ea = CompatFlags.EA_LOADED;
         boolean jade = CompatFlags.JADE_LOADED;
         boolean iris = CompatFlags.IRIS_LOADED;
 
+        // 上一次的「权限变了」待办到这里作废：界面已经重建，旧的待办只会造成一次多余重建。
+        // 新界面开头本来就主动要一份最新快照（下面这行），状态一定是最新的。
+        refreshPending = false;
+
+        // 服务端只在进服时推一次 OP 状态，被 /op、/deop 改过之后客户端不知道，
+        // 所以每次打开界面都主动要一份最新快照（单人不用问，本地就是权威）。
+        SpaceJoyClientNetwork.requestStatus();
+
         ConfigBuilder builder = ConfigBuilder.create()
                 .setParentScreen(parent)
                 .setTitle(Component.translatable(K + "title"))
+                // 记住这次建出来的界面实例，权限变化时好原地重建（见 refreshIfOpen）。
+                .setAfterInitConsumer(screen -> {
+                    openScreen = screen;
+                    openParent = parent;
+                })
                 .setSavingRunnable(() -> {
                     SpaceJoyConfig.save();
                     net.spacejoy.mod.client.ClientMobLabel.clearCache();
@@ -57,9 +79,54 @@ public final class SpaceJoyConfigScreen {
         buildKeys(builder.getOrCreateCategory(Component.translatable(K + "tab.keys")), eb);
         buildFeatures(builder.getOrCreateCategory(Component.translatable(K + "tab.features")), eb, ea, jade);
         buildIntegration(builder.getOrCreateCategory(Component.translatable(K + "tab.integration")), eb, ea);
+        buildServer(builder.getOrCreateCategory(Component.translatable(K + "tab.server")), eb);
         buildIris(builder.getOrCreateCategory(Component.translatable(K + "tab.iris")), eb, iris, parent);
 
         return builder.build();
+    }
+
+    /**
+     * 权限状态变了（<code>/op</code>、<code>/deop</code>）之后重建配置界面。
+     *
+     * <p>Cloth Config 的条目在 build 时就把能不能编辑定死了，运行时没法改回来，
+     * 所以整页重建最省事。重建延到「这个界面重新成为当前界面」的那一刻才做：
+     * 玩家如果正点进子页面（比如维度光影规则编辑器），就先记一笔，别把他弹回来。
+     */
+    public static void tickRefresh() {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || openScreen == null) {
+            return;
+        }
+        if (client.gui.screen() == null) {
+            // 界面已经关掉了（退回游戏里）。清掉引用，连「权限变了」的待办一起清：
+            // 界面都没了，重建就没有意义，留着只会在下次打开时造成一次多余重建。
+            openScreen = null;
+            openParent = null;
+            refreshPending = false;
+            return;
+        }
+        if (!refreshPending) {
+            return;
+        }
+        if (client.gui.screen() != openScreen) {
+            // 还在子页面里，等回来再重建。
+            return;
+        }
+        rebuild();
+    }
+
+    /** 收到「权限变了」时调用，把重建排到下一次 tick。 */
+    public static void markRefreshPending() {
+        refreshPending = true;
+    }
+
+    private static void rebuild() {
+        refreshPending = false;
+        Screen parent = openParent;
+        // 先清空再建，避免 setAfterInitConsumer 递归指着新实例。
+        openScreen = null;
+        openParent = null;
+        Minecraft.getInstance().setScreenAndShow(create(parent));
     }
 
     // -------------------------------------------------------------------------------------
@@ -83,20 +150,20 @@ public final class SpaceJoyConfigScreen {
         boolean polymer = CompatFlags.POLYMER_LOADED;
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "polymerRecipeFix"),
-                        SpaceJoyConfig.isPolymerRecipeFix())
-                .setDefaultValue(SpaceJoyConfig.DEFAULT_POLYMER_RECIPE_FIX)
-                .setSaveConsumer(SpaceJoyConfig::setPolymerRecipeFix)
+                        SpaceJoyServerConfig.isPolymerRecipeFix())
+                .setDefaultValue(SpaceJoyServerConfig.DEFAULT_POLYMER_RECIPE_FIX)
+                .setSaveConsumer(v -> SpaceJoyClientNetwork.sendConfig("polymerRecipeFix", String.valueOf(v)))
                 .setTooltip(tooltip(K + "polymerRecipeFix.tip", polymer, "polymer-core"))
-                .build(), polymer));
+                .build(), polymer && SpaceJoyServerConfig.canEdit()));
 
         boolean tacz = CompatFlags.TACZ_LOADED;
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "taczConcurrencyFix"),
-                        SpaceJoyConfig.isTaczConcurrencyFix())
-                .setDefaultValue(SpaceJoyConfig.DEFAULT_TACZ_CONCURRENCY_FIX)
-                .setSaveConsumer(SpaceJoyConfig::setTaczConcurrencyFix)
+                        SpaceJoyServerConfig.isTaczConcurrencyFix())
+                .setDefaultValue(SpaceJoyServerConfig.DEFAULT_TACZ_CONCURRENCY_FIX)
+                .setSaveConsumer(v -> SpaceJoyClientNetwork.sendConfig("taczConcurrencyFix", String.valueOf(v)))
                 .setTooltip(tooltip(K + "taczConcurrencyFix.tip", tacz, "TaCZ"))
-                .build(), tacz));
+                .build(), tacz && SpaceJoyServerConfig.canEdit()));
 
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "irisOutlineFix"),
@@ -307,21 +374,21 @@ public final class SpaceJoyConfigScreen {
 
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "eliteAbilityDrop"),
-                        SpaceJoyConfig.isEliteAbilityDrop())
-                .setDefaultValue(SpaceJoyConfig.DEFAULT_ELITE_ABILITY_DROP)
-                .setSaveConsumer(SpaceJoyConfig::setEliteAbilityDrop)
+                        SpaceJoyServerConfig.isEliteAbilityDrop())
+                .setDefaultValue(SpaceJoyServerConfig.DEFAULT_ELITE_ABILITY_DROP)
+                .setSaveConsumer(v -> SpaceJoyClientNetwork.sendConfig("eliteAbilityDrop", String.valueOf(v)))
                 .setTooltip(tooltip(K + "eliteAbilityDrop.tip", ok, "BuffMobs + Everlasting Abilities"))
-                .build(), ok));
+                .build(), ok && SpaceJoyServerConfig.canEdit()));
 
         category.addEntry(gate(eb.startEnumSelector(
                         Component.translatable(K + "eliteAbilityMinRarity"),
-                        Rarity.class, SpaceJoyConfig.getEliteAbilityMinRarity())
+                        Rarity.class, SpaceJoyServerConfig.getEliteAbilityMinRarity())
                 .setDefaultValue(Rarity.RARE)
                 .setEnumNameProvider(v -> Component.translatable(
                         K + "eliteAbilityMinRarity." + ((Enum<?>) v).name()))
-                .setSaveConsumer(v -> SpaceJoyConfig.setEliteAbilityMinRarityName(v.name()))
+                .setSaveConsumer(v -> SpaceJoyClientNetwork.sendConfig("eliteAbilityMinRarity", ((Enum<?>) v).name()))
                 .setTooltip(tooltip(K + "eliteAbilityMinRarity.tip", ok, "BuffMobs + Everlasting Abilities"))
-                .build(), ok));
+                .build(), ok && SpaceJoyServerConfig.canEdit()));
 
         if (!buffMobs) {
             category.addEntry(note(eb, K + "missing.buffmobs"));
@@ -329,6 +396,29 @@ public final class SpaceJoyConfigScreen {
         if (!ea) {
             category.addEntry(note(eb, K + "missing.everlastingabilities"));
         }
+    }
+
+    // -------------------------------------------------------------------------------------
+    // 服务端（新增第 8 页）
+    // -------------------------------------------------------------------------------------
+
+    /**
+     * 服务端权威设置：这些开关改的是「专用服务器上真正生效的那份」。
+     * 非 OP 玩家进来时界面整页置灰（只是显示），服务端收 C2S 时还会用 PlayerList.isOp 重新鉴权。
+     */
+    private static void buildServer(ConfigCategory category, ConfigEntryBuilder eb) {
+        boolean canEdit = SpaceJoyServerConfig.canEdit();
+        category.addEntry(note(eb, K + "server.hint"));
+        if (!canEdit) {
+            category.addEntry(note(eb, K + "server.notOp"));
+        }
+        category.addEntry(gate(eb.startBooleanToggle(
+                        Component.translatable(K + "waypointTeleport"),
+                        SpaceJoyServerConfig.isWaypointEnabled())
+                .setDefaultValue(SpaceJoyServerConfig.DEFAULT_WAYPOINT_ENABLED)
+                .setSaveConsumer(v -> SpaceJoyClientNetwork.sendConfig("waypointEnabled", String.valueOf(v)))
+                .setTooltip(Component.translatable(K + "waypointTeleport.tip"))
+                .build(), canEdit));
     }
 
     // -------------------------------------------------------------------------------------

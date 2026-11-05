@@ -3,6 +3,7 @@ package net.spacejoy.mod.mixin.tacz;
 import com.tacz.guns.entity.sync.core.DataHolder;
 import net.minecraft.nbt.CompoundTag;
 import net.spacejoy.mod.config.SpaceJoyConfig;
+import net.spacejoy.mod.config.SpaceJoyServerConfig;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -45,7 +46,7 @@ public abstract class TaczDataHolderProviderMixin {
      * 否则两个线程同时看到「还不是并发表」会各建一张，后赋值的把另一半数据盖掉。
      */
     private static void spacejoy$ensureConcurrent(DataHolder holder) {
-        if (holder == null || !SpaceJoyConfig.isEnabled() || !SpaceJoyConfig.isTaczConcurrencyFix()) {
+        if (holder == null || !SpaceJoyConfig.isEnabled() || !SpaceJoyServerConfig.isTaczConcurrencyFix()) {
             return;
         }
         if (holder.dataMap instanceof java.util.concurrent.ConcurrentHashMap) {

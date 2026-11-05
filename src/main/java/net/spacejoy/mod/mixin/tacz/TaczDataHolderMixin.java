@@ -8,6 +8,7 @@ import com.tacz.guns.entity.sync.core.SyncedDataKey;
 import net.minecraft.world.entity.Entity;
 import net.spacejoy.mod.SpaceJoyMod;
 import net.spacejoy.mod.config.SpaceJoyConfig;
+import net.spacejoy.mod.config.SpaceJoyServerConfig;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -80,7 +81,7 @@ public abstract class TaczDataHolderMixin {
      */
     @Unique
     private void spacejoy$ensureConcurrentMap() {
-        if (!SpaceJoyConfig.isEnabled() || !SpaceJoyConfig.isTaczConcurrencyFix()) {
+        if (!SpaceJoyConfig.isEnabled() || !SpaceJoyServerConfig.isTaczConcurrencyFix()) {
             return;
         }
         // 热路径：已经换过就只付一个 instanceof。

@@ -82,9 +82,9 @@
   "spacejoy_mod.config.mobLabel": "给带能力的生物加头顶标签",
   "spacejoy_mod.config.mobLabel.tip": "在带能力掉落的生物头顶显示它能掉什么，和命名牌一样走原版渲染，隔着方块自然被挡住。生物已经有自定义名时，标签自动挪到名字上面一行。纯客户端。",
   "spacejoy_mod.config.offhandTorchGuard": "副手火把保留",
-  "spacejoy_mod.config.offhandTorchGuard.tip": "副手那摞火把剩到保留数时，就不许再从副手放置，永远留一手照明。只认火把、灵魂火把、铜火把这类照明火把；红石火把不受影响。服务端也拦，改客户端绕不过去。",
+  "spacejoy_mod.config.offhandTorchGuard.tip": "副手那摞火把剩到保留数时，就不许再从副手放置，永远留一手照明。只认火把、灵魂火把、铜火把这类照明火把；红石火把不受影响。纯客户端功能，进服也一致。",
   "spacejoy_mod.config.offhandTorchKeepCount": "保留数量",
-  "spacejoy_mod.config.offhandTorchKeepCount.tip": "-1 表示永远保留（默认）；0 表示不保留，等于关掉这条限制；1 到 16 表示副手至少留下几支。",
+  "spacejoy_mod.config.offhandTorchKeepCount.tip": "-1 表示整摞火把都不从副手放置（永远保留，默认）；0 表示不保留，等于关掉这条限制；1 到 16 表示副手至少留下几支。上面的「副手火把保留」开关默认关闭，要打开才生效。只在客户端生效，进服也一致。",
   "spacejoy_mod.config.permanentSprint": "始终疾跑",
   "spacejoy_mod.config.permanentSprint.tip": "按住前进就自动疾跑。此时按一下疾跑键换成走路，再按一下切回疾跑；松开前进后重置。饿了、用着东西、失明或撞墙时照常停下。",
   "spacejoy_mod.config.keys.hint": "改完立即生效，并和「选项 → 控制 → 按键绑定」共用同一份设置。",
@@ -219,5 +219,11 @@
   "spacejoy_mod.free_camera.enabled": "自由相机已开启",
   "spacejoy_mod.offhand_torch.blocked": "副手火把只剩 %s 支，已保留",
   "spacejoy_mod.sodium.modName": "SpaceJoyMod",
-  "spacejoy_mod.sodium.rules": "光影规则"
+  "spacejoy_mod.sodium.rules": "光影规则",
+  "spacejoy_mod.config.tab.server": "服务端",
+  "spacejoy_mod.config.server.hint": "以下设置改的是服务器上真正生效的那一份。只有管理员（OP）能修改；非管理员查看但无法改动，界面会置灰。",
+  "spacejoy_mod.config.server.notOp": "你不是管理员，这些设置无法修改（仅可查看）。",
+  "spacejoy_mod.config.waypointTeleport": "小地图路径点传送",
+  "spacejoy_mod.config.waypointTeleport.tip": "开启后，玩家在 Xaero 地图上创建的正式路径点会登记到服务端，点「传送到路径点」即可非 OP 传送。关闭时登记与传送一起失效。只认登记过的坐标，非 OP 手敲任意坐标传不了；大地图右键任意位置传送不受此项控制。需客户端把小地图传送命令设为 /sjwp {x} {y} {z}。",
+  "spacejoy_mod.config.server.requiresOp": "修改这些设置需要管理员权限（OP）。"
 }

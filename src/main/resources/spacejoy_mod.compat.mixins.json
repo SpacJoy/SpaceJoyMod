@@ -8,7 +8,8 @@
     "IrisPipelinesMixin",
     "IrisLoggingMixin",
     "PolymerJeiCompatibilityMixin",
-    "freecam.MixinLevelRendererFreeCameraSodium"
+    "freecam.MixinLevelRendererFreeCameraSodium",
+    "xaero.XaeroWaypointSetMixin"
   ],
   "injectors": {
     "defaultRequire": 1
