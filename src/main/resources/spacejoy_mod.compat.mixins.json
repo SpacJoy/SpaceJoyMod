@@ -7,6 +7,7 @@
   "client": [
     "IrisPipelinesMixin",
     "IrisLoggingMixin",
+    "MixinMinecraftIrisDimSwitch",
     "PolymerJeiCompatibilityMixin",
     "freecam.MixinLevelRendererFreeCameraSodium",
     "xaero.XaeroWaypointSetMixin"

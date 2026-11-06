@@ -550,6 +550,66 @@ public final class IrisBridge {
 		}
 	}
 
+	/**
+	 * Whether {@code action} is already satisfied except for its shadow distance -- same pack, no
+	 * option overrides, only that one integer differs.
+	 *
+	 * <p>Such an action does not deserve a reload. Iris reads {@code IrisVideoSettings.shadowDistance}
+	 * every frame (it sizes the shadow frustum and decides whether shadows run at all from it), and
+	 * its own video-settings slider changes it without rebuilding anything. Reloading a shaderpack
+	 * to change one field means re-parsing every shader file and recompiling the whole pipeline --
+	 * minutes of work in the worst case -- for a value that takes effect on the next frame either way.
+	 */
+	public static boolean differsOnlyInShadowDistance(ShaderAction action) {
+		if (!isAvailable() || action == null || shadowDistanceField == null) {
+			return false;
+		}
+
+		if (action.mode() != ShaderAction.Mode.SET_PACK || isFallback()) {
+			return false;
+		}
+
+		if (!action.packName().equals(currentPackName().orElse(null)) || !action.options().isEmpty()) {
+			return false;
+		}
+
+		return action.shadowDistance() != null && action.shadowDistance() != currentShadowDistance();
+	}
+
+	/**
+	 * Writes the shadow distance in place, without touching the pipeline.
+	 *
+	 * <p>The config file is saved best-effort afterwards, because {@code Iris#reload()} re-reads
+	 * {@code iris.properties} from disk: an unsaved value would be silently reverted by the next
+	 * pack change, and this rule would then "differ" again on every single dimension switch.
+	 */
+	public static boolean applyShadowDistanceInPlace(ShaderAction action) {
+		if (!differsOnlyInShadowDistance(action)) {
+			return false;
+		}
+
+		try {
+			shadowDistanceField.setInt(null, action.shadowDistance());
+
+			Object config = irisConfig();
+
+			if (configSave != null && config != null) {
+				configSave.invoke(config);
+			}
+
+			return true;
+		} catch (Throwable t) {
+			LOGGER.warn("Could not set the shadow distance in place: {}", t.toString());
+			return false;
+		}
+	}
+
+	/** The live shadow distance, or {@code null} when Iris does not expose it. */
+	public static Integer shadowDistance() {
+		int value = currentShadowDistance();
+		return value == Integer.MIN_VALUE ? null : value;
+	}
+
 	// ---------------------------------------------------------------------------------------
 	// Mutation
 	// ---------------------------------------------------------------------------------------

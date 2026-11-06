@@ -38,6 +38,20 @@ public final class IrisDimClient implements ClientModInitializer {
     }
 
     /**
+     * 给 {@code Minecraft#updateLevelInEngines} 的注入点用：在 Iris 重建管线之前先把包换好。
+     *
+     * <p>只有真的重新载入了光影才返回 {@code true}；返回 {@code false} 时调用方什么都不做，
+     * Iris 和 tick 路径的行为跟改动之前完全一样。
+     */
+    public static boolean applyEarlyOnLevelChange() {
+        if (controller == null || !CompatFlags.IRIS_LOADED
+                || !SpaceJoyConfig.isEnabled() || !SpaceJoyConfig.isIrisDimensionShaders()) {
+            return false;
+        }
+        return controller.applyEarlyOnLevelChange(Minecraft.getInstance());
+    }
+
+    /**
      * 打开规则编辑器，父界面用传进来的这个。
      *
      * <p>Sodium 视频设置页会把「按 Esc 应该回到的界面」传进来，这里直接用它，玩家关掉规则编辑器

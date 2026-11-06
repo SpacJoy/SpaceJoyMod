@@ -57,6 +57,16 @@
 
 改完点「保存并应用」才会写 `config/spacejoy-mod/irisdim/config.json` 并立刻生效；点「完成」时如果有未保存改动会先问你。
 
+## 换包为什么慢，以及省掉的那一次
+
+跨维度换光影是整包重载，代价分四段：Iris 重新解析 zip 并重建渲染管线（管线里的后处理 / final / shadow / setup 程序在构造时就预编译）、换包后 `allChanged()` 全量重建区块（走 Sodium 的异步队列）、地形和实体程序按需首次编译、以及那个包本身的大小（Eclipse 这类 40 MB 级的包光是解析就要一会儿）。**这四段都消不掉** —— 换包本身就要付这个钱，所以真要说「零卡顿」是不可能的。
+
+但有一份是白付的。Iris 自己在 `Minecraft#updateLevelInEngines` 的 HEAD 上挂了个注入：发现维度变了，就按**当时已载入的包**给新维度建一条管线。跨维度时载入的还是旧包，而本模组紧接着就把包换了，于是这条管线建完立刻被扔掉 —— 一次换包把同一套程序编译两遍，其中一遍纯属浪费。
+
+`MixinMinecraftIrisDimSwitch` 把注入优先级抬到 Iris 之上（1500 对 1000），在它的注入之前先把包换好：`Iris.reload()` 结束时 Iris 已经为新维度准备好了管线，成功后再把 `Iris.lastDimension` 对齐，Iris 的注入随后就认为无事可做。只有**真的重载了**才这么干 —— 无规则命中、已在目标状态、或只差阴影距离时不介入，Iris 和 tick 路径的行为跟改动之前完全一样。
+
+日志上怎么确认它生效：换包时 Iris 那条 `Reloading pipeline on dimension change: ...` 不再出现，本模组那行 `Applied rule ... [N ms]` 里的毫秒数就是这次换包的实际耗时（以前没这个数，只能靠感觉）。另外阴影距离现在单独走一条不重载的路径：`IrisVideoSettings.shadowDistance` 是逐帧实时读的，改它不需要重载，所以规则之间只有阴影距离不同时不再触发整包重载。
+
 ## 头顶标签：为什么不用发光描边
 
 早期版本走的是原版发光描边（拦 `Minecraft#shouldEntityAppearGlowing`，再自己打射线判遮挡）。三个问题都绕不过去：
@@ -209,12 +219,13 @@ net.spacejoy.mod
                                 + freecam/ 自由相机的一整套拦截
                                 + tacz/ TaCZ 数据表换并发容器（唯一一组非 client 混入）
                                 + IrisPipelinesMixin / IrisLoggingMixin / PolymerJeiCompatibilityMixin
+                                + MixinMinecraftIrisDimSwitch（抢在 Iris 前换包）
                                 + SpaceJoyMixinPlugin（按前置决定上不上）
 ```
 
 `spacejoy_mod.mixins.json` 放通用补丁，`spacejoy_mod.client.mixins.json` 只放必须客户端加载的，`spacejoy_mod.compat.mixins.json` 专放「目标模组可能不在」的补丁 —— 它的 `plugin` 是 `SpaceJoyMixinPlugin`，前置缺失时把这些 mixin 整个跳过，而不是靠 `require = 0` 硬吞注入失败。
 
-软依赖铁律：第三方模组的类型只能出现在它自己的 `*Compat` 桥接类里，其余类最多引用 `CompatFlags` 的布尔值。这样前置缺失时不会 `NoClassDefFoundError`。
+软依赖铁律：第三方模组的类型只能出现在它自己的 `*Compat` 桥接类里，其余类最多引用 `CompatFlags` 的布尔值。这样前置缺失时不会 `NoClassDefFoundError`。混入是唯一例外 —— 它们直接 import 目标模组的类，但由 `SpaceJoyMixinPlugin` 按前置是否加载决定上不上，没装前置时这些类根本不会被加载。
 
 ## 许可证
 

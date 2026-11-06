@@ -82,6 +82,36 @@ final class DimensionWatcher {
 		lastDimension = null;
 	}
 
+	/**
+	 * Whether the watcher already knows about a level. {@code false} means the next poll will be an
+	 * {@link Change#ENTER_WORLD} -- which is how the early-switch path tells a world join apart from
+	 * a dimension change, since both arrive as a {@code Minecraft#updateLevelInEngines} call.
+	 */
+	boolean hasLevel() {
+		return inLevel;
+	}
+
+	/**
+	 * Marks the client's current level as already seen, so the next poll reports nothing.
+	 *
+	 * <p>Used by the early-switch path: it acts while {@code updateLevelInEngines} is running, a
+	 * tick before the polling path would have noticed. Without this the tick path would see the
+	 * same change again and queue a second application -- harmless with {@code reloadOnlyWhenChanged},
+	 * but a duplicate reload of a 47 MB pack when that setting is off.
+	 */
+	void adopt(Minecraft client) {
+		ClientLevel level = client.level;
+
+		if (level == null) {
+			inLevel = false;
+			lastDimension = null;
+			return;
+		}
+
+		inLevel = true;
+		lastDimension = toDimensionId(level.dimension().identifier());
+	}
+
 	/** Current context without disturbing the change tracking, or {@code null} when not in a level. */
 	static DimensionContext currentContext(Minecraft client) {
 		ClientLevel level = client.level;

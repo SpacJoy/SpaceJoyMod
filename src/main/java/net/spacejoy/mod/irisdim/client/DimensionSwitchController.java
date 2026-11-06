@@ -227,9 +227,21 @@ public final class DimensionSwitchController {
 			return;
 		}
 
+		applyRule(context, reason, client);
+	}
+
+	/**
+	 * Decides and performs the change for {@code context}.
+	 *
+	 * @return {@code true} only when Iris was actually reloaded and the requested state is now live.
+	 *         The early-switch path uses that answer to decide whether it may stop Iris from
+	 *         rebuilding a pipeline of its own -- it may only do so if a fresh pipeline for the new
+	 *         dimension already exists, which is exactly what a successful reload leaves behind.
+	 */
+	private boolean applyRule(DimensionContext context, String reason, Minecraft client) {
 		if (!IrisBridge.isAvailable()) {
 			logger.warn("Iris is unavailable ({}); leaving shaders alone for {}", IrisBridge.unavailableReason(), context.describe());
-			return;
+			return false;
 		}
 
 		Optional<String> backendProblem = IrisBackendSupport.unavailableReason();
@@ -247,7 +259,7 @@ public final class DimensionSwitchController {
 				logger.debug("Skipped the shader change for {}: running on a backend Iris cannot use", context.describe());
 			}
 
-			return;
+			return false;
 		}
 
 		Optional<DimensionRule> matched = ruleSet.match(context);
@@ -255,7 +267,7 @@ public final class DimensionSwitchController {
 		if (matched.isEmpty()) {
 			logger.info("No rule matches {} -- Iris left as it is. A ready-to-paste template is waiting in {}",
 				context.describe(), discovered.path());
-			return;
+			return false;
 		}
 
 		DimensionRule rule = matched.get();
@@ -266,7 +278,7 @@ public final class DimensionSwitchController {
 				logger.debug("Rule '{}' keeps shaders unchanged for {}", rule.id(), context.describe());
 			}
 
-			return;
+			return false;
 		}
 
 		DimensionRule effective = rule;
@@ -282,7 +294,7 @@ public final class DimensionSwitchController {
 					+ "', which is not in shaderpacks/." + suggestion;
 				logger.warn("{} (dimension {})", message, context.describe());
 				announcer.accept(message);
-				return;
+				return false;
 			}
 
 			effective = fallback.get();
@@ -291,7 +303,24 @@ public final class DimensionSwitchController {
 		}
 
 		if (action.isNoop()) {
-			return;
+			return false;
+		}
+
+		// The cheapest case by far, and the one worth getting out of the way first: a rule that only
+		// disagrees about the shadow distance needs one field written, not a full reload. See
+		// IrisBridge#differsOnlyInShadowDistance for why that is legal.
+		if (IrisBridge.differsOnlyInShadowDistance(action)) {
+			long startedInPlace = System.nanoTime();
+
+			if (IrisBridge.applyShadowDistanceInPlace(action)) {
+				if (verbose()) {
+					logger.debug("Shadow distance for {} set to {} in place ({} ms, no reload; rule '{}')",
+						context.describe(), action.shadowDistance(),
+						(System.nanoTime() - startedInPlace) / 1_000_000, effective.id());
+				}
+
+				return false;
+			}
 		}
 
 		if (config.settings.reloadOnlyWhenChanged && IrisBridge.isAlreadyApplied(action)) {
@@ -299,19 +328,87 @@ public final class DimensionSwitchController {
 				logger.debug("Iris is already in the requested state for {} (rule '{}')", context.describe(), effective.id());
 			}
 
-			return;
+			return false;
 		}
 
+		// Timed because "switching shaders is slow" is the whole reason this feature has settings
+		// for when to apply it: the number in the log is the evidence for whether a delay, a
+		// pre-switch or a cheaper rule actually bought anything.
+		long started = System.nanoTime();
 		IrisApplyResult result = IrisBridge.apply(action);
+		long elapsedMs = (System.nanoTime() - started) / 1_000_000;
 
 		if (result.success()) {
 			String phase = client.gui.overlay() instanceof LoadingOverlay ? ", during loading" : "";
-			logger.info("Applied rule '{}' for {} ({}): {}", effective.id(), context.dimension(), reason + phase, result.message());
+			logger.info("Applied rule '{}' for {} ({}): {} [{} ms]", effective.id(), context.dimension(), reason + phase, result.message(), elapsedMs);
 			announce(config.settings, "Iris: " + result.message() + "  [" + context.dimension() + " / " + effective.id() + "]");
-		} else {
-			logger.warn("Rule '{}' failed for {}: {}", effective.id(), context.describe(), result.message());
-			announce(config.settings, "Iris Dimension Shaders: " + result.message());
+			return true;
 		}
+
+		logger.warn("Rule '{}' failed for {}: {} [{} ms]", effective.id(), context.describe(), result.message(), elapsedMs);
+		announce(config.settings, "Iris Dimension Shaders: " + result.message());
+		return false;
+	}
+
+	/**
+	 * Applies the rule for the level that {@code Minecraft#updateLevelInEngines} is about to hand to
+	 * the renderer, <em>before</em> Iris gets its own turn.
+	 *
+	 * <h2>Why this exists</h2>
+	 * Iris rebuilds its rendering pipeline on every level change (its own mixin on the same method,
+	 * one step later) using whatever shaderpack is loaded at that moment -- which, on a dimension
+	 * change, is still the <em>old</em> pack. This mod then reloads and throws that pipeline away. So
+	 * a plain portal crossing compiles the entire pipeline twice for one pack switch: once with the
+	 * pack being left, once with the pack being entered.
+	 *
+	 * <p>Doing the switch here removes the first of those. The reload ends with Iris preparing a
+	 * pipeline for the current dimension, so by the time Iris's own injector runs there is nothing
+	 * left for it to do -- {@code lastDimension} is aligned on success (see the mixin), and this
+	 * controller marks the change as already seen so the tick path does not queue it a second time.
+	 *
+	 * <p>Only takes part when the change would have been applied on the next tick anyway
+	 * ({@code applyDuringLevelLoading} on, no delay); otherwise the tick path keeps full control and
+	 * this returns {@code false}, leaving Iris's behaviour untouched.
+	 *
+	 * @return {@code true} when Iris was reloaded here and the new pipeline is ready
+	 */
+	public boolean applyEarlyOnLevelChange(Minecraft client) {
+		ModSettings settings = config.settings;
+
+		if (client.level == null || !settings.enabled || !settings.applyDuringLevelLoading || settings.applyDelayTicks > 0) {
+			return false;
+		}
+
+		boolean worldEnter = !watcher.hasLevel();
+
+		if (worldEnter ? !settings.applyOnWorldEnter : !settings.applyOnDimensionChange) {
+			return false;
+		}
+
+		DimensionContext context = DimensionWatcher.currentContext(client);
+
+		if (context == null) {
+			return false;
+		}
+
+		if (worldEnter) {
+			// handleWorldEnter would normally record this; it will never see the change now.
+			packBeforeWorld = IrisBridge.currentPackName().orElse(null);
+		}
+
+		observe(settings, context);
+
+		if (!applyRule(context, worldEnter ? "world enter" : "dimension change", client)) {
+			return false;
+		}
+
+		// Everything below the reload already happened, so the tick path must not repeat it.
+		watcher.adopt(client);
+		pending = null;
+		pendingReason = "";
+		waitTicks = 0;
+		discovered.saveIfDirty();
+		return true;
 	}
 
 	private Optional<DimensionRule> catchAllFallback(DimensionRule rule) {
