@@ -32,6 +32,7 @@
 | 自动切换鞘翅 | 关 | 下落时自动换上背包里最好的鞘翅，落地后换回原来的胸甲 |
 | 旁观者传送 | 关 | 旁观菜单里的「传送到玩家」列出所有在线玩家，不再只列正在旁观的 |
 | 自定义背包缩放 | 关 | 打开容器界面时临时换一个 GUI 缩放，关掉界面恢复原样 |
+| 配方书滚轮翻页 | 开 | 鼠标放在配方书页面上滚动就上下翻页，不用再瞄底部那两个小箭头 |
 
 自由相机的镜头转向系数、移动速度都按 tweakeroo 的手感对齐（转向 0.15、基准速度 `0.07 × 10`、斜走 1.2 倍、起步 0.15 缓动、松手 0.4 减速）。和参考实现不同的是没搬相机预设、区域选择器互斥、火箭自动切换这些附属功能，本体也恒为冻结，不做「相机开着还能走」。
 
@@ -174,9 +175,19 @@ java.util.ConcurrentModificationException
 
 混入配置单独放在 `spacejoy_mod.tacz.mixins.json`，**不带 `environment: client`** —— 崩溃发生在 Integrated Server 线程，只修客户端等于没修。目标类属于第三方模组，所以 `required: false`，由 `SpaceJoyMixinPlugin` 按 `isModLoaded("tacz")` 决定是否应用。
 
+## 配方书滚轮翻页
+
+配方书的分页状态是纯客户端的（`RecipeBookPage` 的 `currentPage` / `totalPages`），翻页只需要改字段再调一次 `updateButtonsForPage()` 重建那 20 个按钮，不发包、不碰服务端。所以这里不重写布局，只把原版那个私有方法 `@Invoker` 出来复用，滚轮和点箭头走的是同一段代码。
+
+- `MixinRecipeBookPageScroll` 管翻页本身：浮层（`OverlayRecipeComponent`）开着时不拦——那时候滚轮该给浮层自己用；已经翻不动了也返回 false。
+- `MixinRecipeBookComponentScroll` 管「鼠标在不在书上」。26.3 的 `RecipeBookComponent#isMouseOver` 是硬编码 `return false`，指望不上，只能自己算矩形：`x = (width - 147) / 2 - xOffset`、`y = (height - 166) / 2`，和原版 `extractRenderState` 里那次 `blit(..., 147, 166, ...)` 用的是同一组坐标，画在哪就能滚在哪。
+- `MixinAbstractContainerScreenRecipeBookScroll` 挂在 `AbstractContainerScreen#mouseScrolled` 的 HEAD 上。**翻不动就放行**，不返回 false 硬吞——原版这个方法还负责把滚动转给 `ItemSlotMouseAction`（比如某些模组的槽位滚轮换配置），吞掉会连那个一起坏。
+
+滚轮方向按原版约定：`scrollY > 0`（往上滚）是上一页。
+
 ## 配置文件
 
-- `config/spacejoy-mod.json` —— 全部开关（总开关、日志、三项修复、六项便利功能、三项功能联动、维度光影；`irisOutlineFix`、`polymerRecipeFix`、`taczConcurrencyFix` 在「修复」页，其中 `irisOutlineFix` **默认关闭**）
+- `config/spacejoy-mod.json` —— 全部开关（总开关、日志、三项修复、七项便利功能、三项功能联动、维度光影；`irisOutlineFix`、`polymerRecipeFix`、`taczConcurrencyFix` 在「修复」页，其中 `irisOutlineFix` **默认关闭**；`recipeBookScroll` **默认开启**）
 - `config/spacejoy-mod/irisdim/config.json` —— 维度光影的规则列表（界面上也能改）
 - `config/spacejoy-mod/irisdim/discovered.json` —— 进过的维度，带可粘贴的规则模板
 
@@ -184,6 +195,7 @@ java.util.ConcurrentModificationException
 
 ```bash
 ./gradlew build                 # 产物在 build/libs/
+./gradlew bumpVersion -Pbump=patch   # 改版本号（major / minor / patch，不带参数只打印当前值）
 ./gradlew installToInstance     # 装进实例，顺带清掉旧身份的 jar
 ./gradlew syncLibs              # 从实例 mods 同步 Jade/EA/CyclopsCore/ClothConfig/ModMenu/TaCZ 到 libs/
 ./gradlew verifyPolymerTargets  # 校验 mixin 目标类在 polymer-bundled 的内嵌 jar 里确实存在
@@ -193,6 +205,8 @@ java.util.ConcurrentModificationException
 ```
 
 `-PinstanceMods="<mods 目录>"` 覆盖默认实例路径。
+
+版本号只有一个真源：`gradle.properties` 的 `version`。jar 文件名、jar 内 `fabric.mod.json` 的 `version` 都由它来。`build` 会自动跑 `verifyModVersion` 核对这三处一致，不一致直接构建失败——之前踩过 `processResources` 把 `expand` 的变量当不成输入、改完版本号后任务仍然 UP-TO-DATE、jar 里留着旧号的坑，现在靠 `inputs.property 'version', version` 堵住了。
 
 ## 结构
 
@@ -210,6 +224,7 @@ net.spacejoy.mod
 ├── config/ScreenLinkEntry      跳转子界面的按钮条目（Cloth 没这类型，自己写的）
 ├── feature/EquipmentSwapper    鞘翅与胸甲互换（含背包里挑最好的鞘翅）
 ├── feature/OffhandTorchGuard   副手火把保留最后几支
+├── feature/recipebook/         配方书滚轮翻页的两个接口（不能放进 mixin 包）
 ├── feature/freecam/            自由相机
 │   ├── FreeCameraEntity        继承 LocalPlayer 的假实体，只当镜头
 │   ├── SpaceJoyFreeCamera      状态管理：建/拆相机、tick 驱动、死亡与换世界自动关
@@ -223,6 +238,7 @@ net.spacejoy.mod
 └── mixin/                      polymer 编解码补丁 + EntityRendererMixin（头顶标签）
                                 + 便利功能补丁（疾跑 / 鞘翅 / 浮空放置 / 旁观传送 / 背包缩放）
                                 + freecam/ 自由相机的一整套拦截
+                                + recipebook/ 配方书滚轮翻页
                                 + tacz/ TaCZ 数据表换并发容器（唯一一组非 client 混入）
                                 + IrisPipelinesMixin / IrisLoggingMixin / PolymerJeiCompatibilityMixin
                                 + MixinMinecraftIrisDimSwitch（抢在 Iris 前换包）

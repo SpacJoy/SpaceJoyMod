@@ -261,6 +261,9 @@ public final class SpaceJoyConfigScreen {
                 .setSaveConsumer(SpaceJoyConfig::setCustomInventoryScale)
                 .setTooltip(Component.translatable(K + "customInventoryScale.tip"))
                 .build());
+        category.addEntry(toggle(eb, K + "recipeBookScroll", SpaceJoyConfig.isRecipeBookScroll(),
+                SpaceJoyConfig.DEFAULT_RECIPE_BOOK_SCROLL,
+                SpaceJoyConfig::setRecipeBookScroll, K + "recipeBookScroll.tip"));
 
         // ---- 旁观 ----
         category.addEntry(section(eb, K + "section.spectator"));

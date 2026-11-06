@@ -53,6 +53,7 @@ public final class SpaceJoyConfig {
     public static final boolean DEFAULT_AUTO_SWITCH_ELYTRA = false;
     public static final boolean DEFAULT_CUSTOM_INVENTORY_GUI_SCALE = false;
     public static final boolean DEFAULT_SPECTATOR_TELEPORT = false;
+    public static final boolean DEFAULT_RECIPE_BOOK_SCROLL = true;
 
     private static boolean enabled = DEFAULT_ENABLED;
     private static boolean debugLog = DEFAULT_DEBUG_LOG;
@@ -107,6 +108,7 @@ public final class SpaceJoyConfig {
     private static boolean customInventoryGuiScale = DEFAULT_CUSTOM_INVENTORY_GUI_SCALE;
     private static int customInventoryScale = DEFAULT_INVENTORY_SCALE;
     private static boolean spectatorTeleport = DEFAULT_SPECTATOR_TELEPORT;
+    private static boolean recipeBookScroll = DEFAULT_RECIPE_BOOK_SCROLL;
 
     private SpaceJoyConfig() {
     }
@@ -148,6 +150,7 @@ public final class SpaceJoyConfig {
             customInventoryGuiScale = readBool(root, "customInventoryGuiScale", customInventoryGuiScale);
             customInventoryScale = clampScale(readInt(root, "customInventoryScale", customInventoryScale));
             spectatorTeleport = readBool(root, "spectatorTeleport", spectatorTeleport);
+            recipeBookScroll = readBool(root, "recipeBookScroll", recipeBookScroll);
         } catch (Exception e) {
             // 配置文件坏了就退回默认值，不要让模组起不来。
             SpaceJoyMod.LOGGER.warn("spacejoy-mod config unreadable, using defaults", e);
@@ -181,6 +184,7 @@ public final class SpaceJoyConfig {
         root.addProperty("customInventoryGuiScale", customInventoryGuiScale);
         root.addProperty("customInventoryScale", customInventoryScale);
         root.addProperty("spectatorTeleport", spectatorTeleport);
+        root.addProperty("recipeBookScroll", recipeBookScroll);
         try {
             Files.createDirectories(path().getParent());
             Files.writeString(path(), GSON.toJson(root));
@@ -523,5 +527,16 @@ public final class SpaceJoyConfig {
     public static void setSpectatorTeleport(boolean value) {
         ensureLoaded();
         spectatorTeleport = value;
+    }
+
+    /** 功能：在配方书区域滚轮翻页。 */
+    public static boolean isRecipeBookScroll() {
+        ensureLoaded();
+        return enabled && recipeBookScroll;
+    }
+
+    public static void setRecipeBookScroll(boolean value) {
+        ensureLoaded();
+        recipeBookScroll = value;
     }
 }

@@ -96,6 +96,8 @@
   "spacejoy_mod.config.section.spectator": "Spectating",
   "spacejoy_mod.config.polymerRecipeFix": "Polymer recipe encoding fix",
   "spacejoy_mod.config.polymerRecipeFix.tip": "Fix the null pointer that made TACZ lose recipes and left JEI crafting pages empty.",
+  "spacejoy_mod.config.recipeBookScroll": "Recipe book mouse wheel paging",
+  "spacejoy_mod.config.recipeBookScroll.tip": "While the recipe book is open, scrolling the wheel over the book turns the page, so you no longer have to aim at the two little arrows at the bottom. On the first or last page the scroll is no longer intercepted and falls through to vanilla.",
   "spacejoy_mod.config.taczConcurrencyFix": "TaCZ concurrency crash fix",
   "spacejoy_mod.config.taczConcurrencyFix.tip": "TaCZ keeps a plain HashMap of per-entity data, and the server tick thread touches it while entity save data is being read or written. With multithreaded chunk mods such as c2me installed the two collide and HashMap.computeIfAbsent throws ConcurrentModificationException, which crashes the game. This replaces the map with a thread-safe one; behaviour is unchanged. Applies on both client and server.",
   "spacejoy_mod.config.spectatorTeleport": "Spectator teleport",

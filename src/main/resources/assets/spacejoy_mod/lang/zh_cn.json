@@ -96,6 +96,8 @@
   "spacejoy_mod.config.section.spectator": "旁观",
   "spacejoy_mod.config.polymerRecipeFix": "polymer 配方编码修复",
   "spacejoy_mod.config.polymerRecipeFix.tip": "修掉让 TACZ 丢配方、JEI 合成页空掉的那个空指针。",
+  "spacejoy_mod.config.recipeBookScroll": "配方书滚轮翻页",
+  "spacejoy_mod.config.recipeBookScroll.tip": "配方书打开时，把鼠标放到书页上滚动就能上下翻页，不用去点书页底部那两个小箭头。滚到第一页或最后一页时不再拦截，仍交给原版处理。",
   "spacejoy_mod.config.taczConcurrencyFix": "TaCZ 并发崩溃修复",
   "spacejoy_mod.config.taczConcurrencyFix.tip": "TaCZ 每只生物身上存的那张数据表是普通 HashMap，服务端 tick 和实体存档读写会同时碰它；装了 c2me 这类多线程区块模组时，会在 HashMap.computeIfAbsent 抛 ConcurrentModificationException 直接把游戏带崩。这项把它换成线程安全的表，行为不变。客户端与服务端都生效。",
   "spacejoy_mod.config.spectatorTeleport": "旁观者传送",

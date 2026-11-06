@@ -23,7 +23,11 @@
     "freecam.MixinEntityFreeCamera",
     "freecam.MixinHudFreeCamera",
     "freecam.MixinFirstPersonHandsAndItemsFreeCamera",
-    "freecam.MixinFirstPersonHandsAndItemsRendererFreeCamera"
+    "freecam.MixinFirstPersonHandsAndItemsRendererFreeCamera",
+    "recipebook.RecipeBookScreenAccessor",
+    "recipebook.MixinRecipeBookPageScroll",
+    "recipebook.MixinRecipeBookComponentScroll",
+    "recipebook.MixinAbstractContainerScreenRecipeBookScroll"
   ],
   "injectors": {
     "defaultRequire": 1
