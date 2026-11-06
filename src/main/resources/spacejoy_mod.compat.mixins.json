@@ -8,6 +8,7 @@
     "IrisPipelinesMixin",
     "IrisLoggingMixin",
     "MixinMinecraftIrisDimSwitch",
+    "MixinPipelineManagerRebuildGuard",
     "PolymerJeiCompatibilityMixin",
     "freecam.MixinLevelRendererFreeCameraSodium",
     "xaero.XaeroWaypointSetMixin"

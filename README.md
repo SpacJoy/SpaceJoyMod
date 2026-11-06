@@ -63,9 +63,15 @@
 
 但有一份是白付的。Iris 自己在 `Minecraft#updateLevelInEngines` 的 HEAD 上挂了个注入：发现维度变了，就按**当时已载入的包**给新维度建一条管线。跨维度时载入的还是旧包，而本模组紧接着就把包换了，于是这条管线建完立刻被扔掉 —— 一次换包把同一套程序编译两遍，其中一遍纯属浪费。
 
-`MixinMinecraftIrisDimSwitch` 把注入优先级抬到 Iris 之上（1500 对 1000），在它的注入之前先把包换好：`Iris.reload()` 结束时 Iris 已经为新维度准备好了管线，成功后再把 `Iris.lastDimension` 对齐，Iris 的注入随后就认为无事可做。只有**真的重载了**才这么干 —— 无规则命中、已在目标状态、或只差阴影距离时不介入，Iris 和 tick 路径的行为跟改动之前完全一样。
+`MixinMinecraftIrisDimSwitch` 把注入优先级抬到 Iris 之上（900 对默认的 1000 —— Mixin 里数字**越大越晚**执行，这里踩过一次坑），在它的注入之前先把包换好：`Iris.reload()` 结束时 Iris 已经为新维度准备好了管线，本模组再把这次变化标记为已处理，tick 路径不会重复排队。只有**真的重载了**才这么干 —— 无规则命中、已在目标状态、或只差阴影距离时不介入，Iris 和 tick 路径的行为跟改动之前完全一样。
 
-日志上怎么确认它生效：换包时 Iris 那条 `Reloading pipeline on dimension change: ...` 不再出现，本模组那行 `Applied rule ... [N ms]` 里的毫秒数就是这次换包的实际耗时（以前没这个数，只能靠感觉）。另外阴影距离现在单独走一条不重载的路径：`IrisVideoSettings.shadowDistance` 是逐帧实时读的，改它不需要重载，所以规则之间只有阴影距离不同时不再触发整包重载。
+不过光换得早还不够。Iris 判断维度变没变用的是**引用比较**：`if (Iris.getCurrentDimension() != Iris.lastDimension)`，而 `Iris#getCurrentDimension()` 每次调用都 `new NamespacedId(...)`，新对象永远不等于旧对象 —— 这个条件**恒为真**，给 `lastDimension` 赋任何值都拦不住它。实测日志里 `Reloading pipeline on dimension change: the_nether => the_nether`（两边同名）就是证据。
+
+所以还得把后面那次多余的销毁吞掉：`MixinPipelineManagerRebuildGuard` 在 `PipelineManager#destroyPipeline` 的 HEAD 上取消调用，条件是本模组刚在 250 ms 内建好过管线（`PipelineRebuildGuard` 的时限许可）。管线留在缓存里，Iris 随后的 `preparePipeline` 命中缓存直接返回 —— 不重建，也不会走到那个分支里的 `levelExtractor.allChanged()`，**管线重建和全量区块重建一起省掉**。
+
+日志上怎么确认它生效：每次换包应该看到 `skipped Iris's redundant pipeline destroy: the new pipeline is already in place`（需要开调试日志），并且紧跟着**没有** `Destroying pipeline ...` / `Creating pipeline for dimension ...`。本模组那行 `Applied rule ... [N ms]` 里的毫秒数就是这次换包的实际耗时。注意 `Reloading pipeline on dimension change: ...` 这行**仍会出现**，它在销毁之前打印，删不掉，别拿它当判据。
+
+另外阴影距离现在单独走一条不重载的路径：`IrisVideoSettings.shadowDistance` 是逐帧实时读的，改它不需要重载，所以规则之间只有阴影距离不同时不再触发整包重载。
 
 ## 头顶标签：为什么不用发光描边
 
@@ -220,6 +226,7 @@ net.spacejoy.mod
                                 + tacz/ TaCZ 数据表换并发容器（唯一一组非 client 混入）
                                 + IrisPipelinesMixin / IrisLoggingMixin / PolymerJeiCompatibilityMixin
                                 + MixinMinecraftIrisDimSwitch（抢在 Iris 前换包）
+                                + MixinPipelineManagerRebuildGuard（吞掉 Iris 多余的管线销毁）
                                 + SpaceJoyMixinPlugin（按前置决定上不上）
 ```
 

@@ -21,7 +21,8 @@ public final class SpaceJoyMixinPlugin implements IMixinConfigPlugin {
     private static final Set<String> IRIS_MIXINS = Set.of(
             "net.spacejoy.mod.mixin.IrisPipelinesMixin",
             "net.spacejoy.mod.mixin.IrisLoggingMixin",
-            "net.spacejoy.mod.mixin.MixinMinecraftIrisDimSwitch"
+            "net.spacejoy.mod.mixin.MixinMinecraftIrisDimSwitch",
+            "net.spacejoy.mod.mixin.MixinPipelineManagerRebuildGuard"
     );
     private static final String POLYMER_JEI_MIXIN = "net.spacejoy.mod.mixin.PolymerJeiCompatibilityMixin";
     /**

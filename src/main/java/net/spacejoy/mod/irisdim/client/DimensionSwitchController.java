@@ -3,6 +3,7 @@ package net.spacejoy.mod.irisdim.client;
 import net.spacejoy.mod.irisdim.compat.iris.IrisApplyResult;
 import net.spacejoy.mod.irisdim.compat.iris.IrisBackendSupport;
 import net.spacejoy.mod.irisdim.compat.iris.IrisBridge;
+import net.spacejoy.mod.irisdim.compat.iris.PipelineRebuildGuard;
 import net.spacejoy.mod.irisdim.config.ConfigStore;
 import net.spacejoy.mod.config.SpaceJoyConfig;
 import net.spacejoy.mod.irisdim.config.ModConfig;
@@ -404,6 +405,14 @@ public final class DimensionSwitchController {
 		if (!applyRule(context, worldEnter ? "world enter, before pipeline" : "dimension change, before pipeline", client)) {
 			return false;
 		}
+
+		// The reload just ended with Iris preparing a pipeline for the new dimension and the new
+		// pack. Iris's own injector on the same method runs next and would destroy that pipeline and
+		// build the same one again -- twice the pipeline builds and twice the full chunk rebuild for
+		// one pack switch. Arm the guard so that destroy is cancelled; see PipelineRebuildGuard for
+		// why aligning Iris.lastDimension cannot work (Iris compares by reference, so it never
+		// matches).
+		PipelineRebuildGuard.markFresh();
 
 		// Everything below the reload already happened, so the tick path must not repeat it.
 		watcher.adopt(client);
