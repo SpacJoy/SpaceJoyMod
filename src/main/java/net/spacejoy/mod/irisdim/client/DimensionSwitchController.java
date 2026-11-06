@@ -398,7 +398,10 @@ public final class DimensionSwitchController {
 
 		observe(settings, context);
 
-		if (!applyRule(context, worldEnter ? "world enter" : "dimension change", client)) {
+		// The reason string is what shows up in the "Applied rule ..." line, so it doubles as the
+		// only evidence that the early path -- rather than the tick path catching up afterwards --
+		// is the thing that did the work. Keep the two distinguishable.
+		if (!applyRule(context, worldEnter ? "world enter, before pipeline" : "dimension change, before pipeline", client)) {
 			return false;
 		}
 
