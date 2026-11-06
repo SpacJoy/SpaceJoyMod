@@ -71,9 +71,82 @@ tasks.named('compileJava').configure {
     dependsOn tasks.named('syncLibs')
 }
 
+// 版本号的唯一来源是 gradle.properties 的 version：jar 文件名和 jar 内 fabric.mod.json 都从它派生。
+// inputs.property 这一行不能删 —— expand 里的变量不会被 Gradle 当成任务输入，
+// 少了它改完 version 再构建，processResources 仍判 UP-TO-DATE，jar 里留的还是上一版号。
 processResources {
+    inputs.property 'version', version
     filesMatching('fabric.mod.json') {
-        expand "version": version
+        expand 'version': version
+    }
+}
+
+// 校验三处版本号一致：gradle.properties / jar 文件名 / jar 内 fabric.mod.json。
+// 挂在 check 上，构建时就顺手查完，不用等进游戏看模组列表才发现对不上。
+tasks.register('verifyModVersion') {
+    dependsOn tasks.named('jar')
+    doLast {
+        def jarFile = tasks.named('jar').get().archiveFile.get().asFile
+        def expected = version.toString()
+        if (!jarFile.name.endsWith("-${expected}.jar")) {
+            throw new GradleException("jar 文件名里的版本与 gradle.properties 不一致：${jarFile.name}（期望 ${expected}）")
+        }
+        def embedded = null
+        new java.util.zip.ZipFile(jarFile).withCloseable { zf ->
+            def entry = zf.getEntry('fabric.mod.json')
+            if (entry == null) throw new GradleException("${jarFile.name} 里没有 fabric.mod.json")
+            embedded = zf.getInputStream(entry).getText('UTF-8')
+        }
+        def matcher = embedded =~ /"version"\s*:\s*"([^"]+)"/
+        if (!matcher.find()) throw new GradleException('fabric.mod.json 里没有 version 字段')
+        def declared = matcher.group(1)
+        if (declared != expected) {
+            throw new GradleException(
+                "fabric.mod.json 版本与 gradle.properties 不一致：${declared} vs ${expected}" +
+                "（processResources 的 inputs.property 掉了？）")
+        }
+        println "version OK: ${expected}（文件名与 fabric.mod.json 一致）"
+    }
+}
+
+tasks.named('check').configure {
+    dependsOn tasks.named('verifyModVersion')
+}
+
+// 递增版本号并写回 gradle.properties。
+// 用法：./gradlew bumpVersion -Pbump=patch|minor|major（默认 patch）
+// 不指定 -Pbump 时只打印当前版本，方便确认。
+tasks.register('bumpVersion') {
+    doLast {
+        def f = file('gradle.properties')
+        // 这个文件历史上混进过非 UTF-8 字节（首行注释），必须按单字节编码读回再写出，
+        // 否则整段中文注释会被替换成乱码。
+        def cs = java.nio.charset.StandardCharsets.ISO_8859_1
+        def text = new String(f.bytes, cs)
+        def m = text =~ /(?m)^version=(\d+)\.(\d+)\.(\d+)/
+        if (!m.find()) throw new GradleException('gradle.properties 里找不到 version=x.y.z')
+        def major = m.group(1) as int
+        def minor = m.group(2) as int
+        def patch = m.group(3) as int
+        def current = "${major}.${minor}.${patch}"
+        def part = findProperty('bump')?.toString()
+        if (part == null) {
+            println "current version: ${current}（加 -Pbump=patch|minor|major 才会改）"
+            return
+        }
+        String next
+        if (part == 'major') {
+            next = "${major + 1}.0.0"
+        } else if (part == 'minor') {
+            next = "${major}.${minor + 1}.0"
+        } else if (part == 'patch') {
+            next = "${major}.${minor}.${patch + 1}"
+        } else {
+            throw new GradleException("bump 只能是 major / minor / patch，收到：${part}")
+        }
+        def replaced = text.replaceFirst(/(?m)^version=\d+\.\d+\.\d+/, "version=${next}")
+        f.bytes = replaced.getBytes(cs)
+        println "version ${current} -> ${next}"
     }
 }
 
