@@ -4,6 +4,24 @@
 
 ***
 
+# V0.17.0 (2026-11-08)
+
+**聊天记录上限可配，移植 More Chat History**\
+Full Changelog (相对于 0.16.0): [https://github.com/SpacJoy/SpaceJoyMod/compare/v0.16.0...v0.17.0](https://github.com/SpacJoy/SpaceJoyMod/compare/v0.16.0...v0.17.0)
+
+## ✨ 聊天记录上限
+
+- **聊天框能回看的消息数和输入框上键历史都放宽到可配**：原版两处都写死 100 条，翻到顶就没了，翻聊天记录、找之前说过的指令经常差那么几条。默认保留 16384 条，可在配置界面「便利」页的「聊天」分区改（100~16384）。
+  - 移植自 [More Chat History](https://modrinth.com/mod/more-chat-history) 2.0.0，改成本模组的开关 + 条数配置，不再是装上就固定 16384
+  - `mixin/MixinChatComponentHistory.java`：原版四处硬编码 100（`<init>` 的 `new ArrayListDeque(100)`、`addMessageToQueue`、`addMessageToDisplayQueue`、`addRecentChat`）用的是同一个内联字面量，所以用四个 `@ModifyExpressionValue` 在 `CONSTANT intValue=100` 锚点上统一换掉，不逐个 `@Redirect`。只换常量，原版三段裁剪逻辑一行都不用重写
+  - **没搬原 mod 的 `@WrapOperation` 那半**：它额外改了 `ArrayListDeque` 的构造容量，但那个参数只是初始容量，`grow()` 每次 `+max(1, len/2)` 会自己扩，改它只省几次扩容、不影响上限
+  - 用 `@ModifyExpressionValue` 而不是 `@Redirect` 的另一个理由：前者可以叠，别的模组也改同一处时不会互相顶掉
+  - 功能关掉时返回原版的值而不是模组默认值，否则「关掉」反而会变成 16384
+  - 上限每次裁剪时现读配置，改完立刻生效；已经存在的老消息要等下一条新消息进来才会按新上限裁剪
+- **配置项**：`chatHistory` 默认开启、`chatHistoryLength` 默认 16384（范围 100~16384，用输入框而不是滑块 —— 跨度太大，滑块上一格就是一百多条）
+
+***
+
 # V0.16.0 (2026-11-07)
 
 **接入 GitHub Actions：推标签自动构建并发版，编译依赖改由 CI 现下**\

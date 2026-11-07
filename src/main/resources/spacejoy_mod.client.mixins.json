@@ -8,6 +8,7 @@
     "MixinLocalPlayerPermanentSprint",
     "MixinLocalPlayerAutoSwitchElytra",
     "MixinWindowInventoryScale",
+    "MixinChatComponentHistory",
     "MixinMouseHandlerAngelBlock",
     "MixinPlayerMenuItemSpectatorTeleport",
     "MixinTeleportToPlayerMenuCategorySpectatorTeleport",

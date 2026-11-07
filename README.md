@@ -33,6 +33,7 @@
 | 旁观者传送 | 关 | 旁观菜单里的「传送到玩家」列出所有在线玩家，不再只列正在旁观的 |
 | 自定义背包缩放 | 关 | 打开容器界面时临时换一个 GUI 缩放，关掉界面恢复原样 |
 | 配方书滚轮翻页 | 开 | 鼠标放在配方书页面上滚动就上下翻页，不用再瞄底部那两个小箭头 |
+| 聊天记录上限 | 开 | 原版聊天框和输入框上键历史都只留 100 条，这项改成按配置保留（默认 16384），翻聊天记录不会再被截断 |
 
 自由相机的镜头转向系数、移动速度都按 tweakeroo 的手感对齐（转向 0.15、基准速度 `0.07 × 10`、斜走 1.2 倍、起步 0.15 缓动、松手 0.4 减速）。和参考实现不同的是没搬相机预设、区域选择器互斥、火箭自动切换这些附属功能，本体也恒为冻结，不做「相机开着还能走」。
 
@@ -185,9 +186,22 @@ java.util.ConcurrentModificationException
 
 滚轮方向按原版约定：`scrollY > 0`（往上滚）是上一页。
 
+## 聊天记录上限
+
+移植自 [More Chat History](https://modrinth.com/mod/more-chat-history)，改成本模组的可配置开关。原版把「聊天框能回看多少条」和「输入框按上键能翻出多少条」都写死成 100，四处各有一个内联字面量：
+
+- `<init>` 里 `new ArrayListDeque(100)` —— 只是初始容量，队列满了 `grow()` 会自己扩
+- `addMessageToQueue` —— `allMessages` 超过 100 就 `removeLast`
+- `addMessageToDisplayQueue` —— 已排版的 `trimmedMessages` 同理
+- `addRecentChat` —— 输入框历史的 `recentChat` 满了 100 就 `removeFirst`
+
+四处用的是同一个字面量，所以用 `@ModifyExpressionValue` 在 `CONSTANT intValue=100` 锚点上统一替换，不逐个 `@Redirect`：只换常量本身，原版三段裁剪逻辑一行都不用重写，也不会跟别的模组改同一处时互相顶掉（`@ModifyExpressionValue` 可以叠）。原 mod 另外用 `@WrapOperation` 改了 `ArrayListDeque` 的构造容量，这里不需要 —— 那只是初始容量。
+
+功能关掉时返回原版的值而不是模组默认值，否则「关掉」反而会变成 16384。上限每次裁剪时现读配置，改完立刻生效；已经存在的老消息要等下一条新消息进来才会按新上限裁剪。
+
 ## 配置文件
 
-- `config/spacejoy-mod.json` —— 全部开关（总开关、日志、三项修复、七项便利功能、三项功能联动、维度光影；`irisOutlineFix`、`polymerRecipeFix`、`taczConcurrencyFix` 在「修复」页，其中 `irisOutlineFix` **默认关闭**；`recipeBookScroll` **默认开启**）
+- `config/spacejoy-mod.json` —— 全部开关（总开关、日志、三项修复、七项便利功能、三项功能联动、维度光影；`irisOutlineFix`、`polymerRecipeFix`、`taczConcurrencyFix` 在「修复」页，其中 `irisOutlineFix` **默认关闭**；`recipeBookScroll`、`chatHistory` **默认开启**，`chatHistoryLength` 默认 16384、范围 100~16384）
 - `config/spacejoy-mod/irisdim/config.json` —— 维度光影的规则列表（界面上也能改）
 - `config/spacejoy-mod/irisdim/discovered.json` —— 进过的维度，带可粘贴的规则模板
 
@@ -262,6 +276,7 @@ net.spacejoy.mod
                                 + 便利功能补丁（疾跑 / 鞘翅 / 浮空放置 / 旁观传送 / 背包缩放）
                                 + freecam/ 自由相机的一整套拦截
                                 + recipebook/ 配方书滚轮翻页
+                                + MixinChatComponentHistory（聊天记录上限）
                                 + tacz/ TaCZ 数据表换并发容器（唯一一组非 client 混入）
                                 + IrisPipelinesMixin / IrisLoggingMixin / PolymerJeiCompatibilityMixin
                                 + MixinMinecraftIrisDimSwitch（抢在 Iris 前换包）

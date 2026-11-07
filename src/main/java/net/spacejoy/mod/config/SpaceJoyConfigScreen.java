@@ -265,6 +265,22 @@ public final class SpaceJoyConfigScreen {
                 SpaceJoyConfig.DEFAULT_RECIPE_BOOK_SCROLL,
                 SpaceJoyConfig::setRecipeBookScroll, K + "recipeBookScroll.tip"));
 
+        // ---- 聊天 ----
+        category.addEntry(section(eb, K + "section.chat"));
+        category.addEntry(toggle(eb, K + "chatHistory", SpaceJoyConfig.isChatHistory(),
+                SpaceJoyConfig.DEFAULT_CHAT_HISTORY,
+                SpaceJoyConfig::setChatHistory, K + "chatHistory.tip"));
+        // 100 到 16384 跨度太大，滑块上一格就是一百多条，所以和保留数一样用输入框。
+        category.addEntry(eb.startIntField(
+                        Component.translatable(K + "chatHistoryLength"),
+                        SpaceJoyConfig.getChatHistoryLength())
+                .setDefaultValue(SpaceJoyConfig.DEFAULT_CHAT_HISTORY_LENGTH)
+                .setMin(SpaceJoyConfig.MIN_CHAT_HISTORY_LENGTH)
+                .setMax(SpaceJoyConfig.MAX_CHAT_HISTORY_LENGTH)
+                .setSaveConsumer(SpaceJoyConfig::setChatHistoryLength)
+                .setTooltip(Component.translatable(K + "chatHistoryLength.tip"))
+                .build());
+
         // ---- 旁观 ----
         category.addEntry(section(eb, K + "section.spectator"));
         category.addEntry(toggle(eb, K + "spectatorTeleport", SpaceJoyConfig.isSpectatorTeleport(),

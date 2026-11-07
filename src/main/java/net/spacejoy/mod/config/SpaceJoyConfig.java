@@ -54,6 +54,12 @@ public final class SpaceJoyConfig {
     public static final boolean DEFAULT_CUSTOM_INVENTORY_GUI_SCALE = false;
     public static final boolean DEFAULT_SPECTATOR_TELEPORT = false;
     public static final boolean DEFAULT_RECIPE_BOOK_SCROLL = true;
+    public static final boolean DEFAULT_CHAT_HISTORY = true;
+    /** 聊天记录上限的默认值：与原 More Chat History 的 16384 一致。 */
+    public static final int DEFAULT_CHAT_HISTORY_LENGTH = 16384;
+    /** 下限就是原版自己的 100，再小等于把记录砍到比原版还短，没有意义。 */
+    public static final int MIN_CHAT_HISTORY_LENGTH = 100;
+    public static final int MAX_CHAT_HISTORY_LENGTH = 16384;
 
     private static boolean enabled = DEFAULT_ENABLED;
     private static boolean debugLog = DEFAULT_DEBUG_LOG;
@@ -110,6 +116,10 @@ public final class SpaceJoyConfig {
     private static boolean spectatorTeleport = DEFAULT_SPECTATOR_TELEPORT;
     private static boolean recipeBookScroll = DEFAULT_RECIPE_BOOK_SCROLL;
 
+    // ---- 聊天记录长度（移植自 More Chat History）----
+    private static boolean chatHistory = DEFAULT_CHAT_HISTORY;
+    private static int chatHistoryLength = DEFAULT_CHAT_HISTORY_LENGTH;
+
     private SpaceJoyConfig() {
     }
 
@@ -151,6 +161,8 @@ public final class SpaceJoyConfig {
             customInventoryScale = clampScale(readInt(root, "customInventoryScale", customInventoryScale));
             spectatorTeleport = readBool(root, "spectatorTeleport", spectatorTeleport);
             recipeBookScroll = readBool(root, "recipeBookScroll", recipeBookScroll);
+            chatHistory = readBool(root, "chatHistory", chatHistory);
+            chatHistoryLength = clampChatHistory(readInt(root, "chatHistoryLength", chatHistoryLength));
         } catch (Exception e) {
             // 配置文件坏了就退回默认值，不要让模组起不来。
             SpaceJoyMod.LOGGER.warn("spacejoy-mod config unreadable, using defaults", e);
@@ -185,6 +197,8 @@ public final class SpaceJoyConfig {
         root.addProperty("customInventoryScale", customInventoryScale);
         root.addProperty("spectatorTeleport", spectatorTeleport);
         root.addProperty("recipeBookScroll", recipeBookScroll);
+        root.addProperty("chatHistory", chatHistory);
+        root.addProperty("chatHistoryLength", chatHistoryLength);
         try {
             Files.createDirectories(path().getParent());
             Files.writeString(path(), GSON.toJson(root));
@@ -238,6 +252,11 @@ public final class SpaceJoyConfig {
     /** 背包缩放夹到 1~10。 */
     private static int clampScale(int value) {
         return Math.max(MIN_INVENTORY_SCALE, Math.min(MAX_INVENTORY_SCALE, value));
+    }
+
+    /** 聊天记录上限夹到 100~16384，手改成 0 或负数也不会把记录清空。 */
+    private static int clampChatHistory(int value) {
+        return Math.max(MIN_CHAT_HISTORY_LENGTH, Math.min(MAX_CHAT_HISTORY_LENGTH, value));
     }
 
     private static void ensureLoaded() {
@@ -538,5 +557,27 @@ public final class SpaceJoyConfig {
     public static void setRecipeBookScroll(boolean value) {
         ensureLoaded();
         recipeBookScroll = value;
+    }
+
+    /** 功能：把聊天记录（聊天框里的历史消息 + 输入框的上键历史）上限从 100 条放宽。 */
+    public static boolean isChatHistory() {
+        ensureLoaded();
+        return enabled && chatHistory;
+    }
+
+    public static void setChatHistory(boolean value) {
+        ensureLoaded();
+        chatHistory = value;
+    }
+
+    /** 聊天记录上限。混入只在 {@link #isChatHistory()} 为真时才用它。 */
+    public static int getChatHistoryLength() {
+        ensureLoaded();
+        return clampChatHistory(chatHistoryLength);
+    }
+
+    public static void setChatHistoryLength(int value) {
+        ensureLoaded();
+        chatHistoryLength = clampChatHistory(value);
     }
 }
