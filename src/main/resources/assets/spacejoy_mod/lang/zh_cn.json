@@ -93,6 +93,7 @@
   "spacejoy_mod.config.chatHistoryLength": "保留条数",
   "spacejoy_mod.config.chatHistoryLength.tip": "聊天框和输入框历史各自保留多少条，范围 100 到 16384，默认 16384（原版是 100）。条数越多占内存越多，一条按一两百字节算，16384 条约几 MB。改完立刻生效，已经存在的老消息要等下一条新消息进来才会按新上限裁剪。",
   "spacejoy_mod.config.section.chat": "聊天",
+  "spacejoy_mod.config.section.recipeBook": "配方书",
   "spacejoy_mod.config.section.building": "建造",
   "spacejoy_mod.config.section.equipment": "装备",
   "spacejoy_mod.config.section.freeCamera": "自由相机",

@@ -133,6 +133,13 @@ public final class SpaceJoyConfigScreen {
     // 通用
     // -------------------------------------------------------------------------------------
 
+    /**
+     * 模组总开关、日志，以及所有「显示层」的偏好。
+     *
+     * <p>缩放、翻页、聊天记录上限这些只影响画多大、能翻多少，跟玩法无关，
+     * 所以放在通用页而不是操作增强页 —— 那边留移动、建造这类真·操作项。
+     * 这几项都纯客户端，不依赖任何前置模组，所以一律不置灰。
+     */
     private static void buildGeneral(ConfigCategory category, ConfigEntryBuilder eb) {
         category.addEntry(toggle(eb, K + "enabled", SpaceJoyConfig.isEnabled(),
                 SpaceJoyConfig.DEFAULT_ENABLED,
@@ -140,6 +147,43 @@ public final class SpaceJoyConfigScreen {
         category.addEntry(toggle(eb, K + "debugLog", SpaceJoyConfig.isDebugLog(),
                 SpaceJoyConfig.DEFAULT_DEBUG_LOG,
                 SpaceJoyConfig::setDebugLog, K + "debugLog.tip"));
+
+        // ---- 界面缩放 ----
+        category.addEntry(section(eb, K + "section.interface"));
+        category.addEntry(toggle(eb, K + "customInventoryGuiScale", SpaceJoyConfig.isCustomInventoryGuiScale(),
+                SpaceJoyConfig.DEFAULT_CUSTOM_INVENTORY_GUI_SCALE,
+                SpaceJoyConfig::setCustomInventoryGuiScale, K + "customInventoryGuiScale.tip"));
+        category.addEntry(eb.startIntSlider(
+                        Component.translatable(K + "customInventoryScale"),
+                        SpaceJoyConfig.getCustomInventoryScale(),
+                        SpaceJoyConfig.MIN_INVENTORY_SCALE, SpaceJoyConfig.MAX_INVENTORY_SCALE)
+                .setDefaultValue(SpaceJoyConfig.DEFAULT_INVENTORY_SCALE)
+                .setTextGetter(v -> Component.translatable(K + "customInventoryScale.value", v))
+                .setSaveConsumer(SpaceJoyConfig::setCustomInventoryScale)
+                .setTooltip(Component.translatable(K + "customInventoryScale.tip"))
+                .build());
+
+        // ---- 配方书 ----
+        category.addEntry(section(eb, K + "section.recipeBook"));
+        category.addEntry(toggle(eb, K + "recipeBookScroll", SpaceJoyConfig.isRecipeBookScroll(),
+                SpaceJoyConfig.DEFAULT_RECIPE_BOOK_SCROLL,
+                SpaceJoyConfig::setRecipeBookScroll, K + "recipeBookScroll.tip"));
+
+        // ---- 聊天 ----
+        category.addEntry(section(eb, K + "section.chat"));
+        category.addEntry(toggle(eb, K + "chatHistory", SpaceJoyConfig.isChatHistory(),
+                SpaceJoyConfig.DEFAULT_CHAT_HISTORY,
+                SpaceJoyConfig::setChatHistory, K + "chatHistory.tip"));
+        // 100 到 16384 跨度太大，滑块上一格就是一百多条，所以和保留数一样用输入框。
+        category.addEntry(eb.startIntField(
+                        Component.translatable(K + "chatHistoryLength"),
+                        SpaceJoyConfig.getChatHistoryLength())
+                .setDefaultValue(SpaceJoyConfig.DEFAULT_CHAT_HISTORY_LENGTH)
+                .setMin(SpaceJoyConfig.MIN_CHAT_HISTORY_LENGTH)
+                .setMax(SpaceJoyConfig.MAX_CHAT_HISTORY_LENGTH)
+                .setSaveConsumer(SpaceJoyConfig::setChatHistoryLength)
+                .setTooltip(Component.translatable(K + "chatHistoryLength.tip"))
+                .build());
     }
 
     // -------------------------------------------------------------------------------------
@@ -241,51 +285,6 @@ public final class SpaceJoyConfigScreen {
                 .setTooltip(Component.translatable(K + "angelBlockPlacementDistance.tip"))
                 .build());
 
-        // ---- 装备 ----
-        category.addEntry(section(eb, K + "section.equipment"));
-        category.addEntry(toggle(eb, K + "autoSwitchElytra", SpaceJoyConfig.isAutoSwitchElytra(),
-                SpaceJoyConfig.DEFAULT_AUTO_SWITCH_ELYTRA,
-                SpaceJoyConfig::setAutoSwitchElytra, K + "autoSwitchElytra.tip"));
-
-        // ---- 界面 ----
-        category.addEntry(section(eb, K + "section.interface"));
-        category.addEntry(toggle(eb, K + "customInventoryGuiScale", SpaceJoyConfig.isCustomInventoryGuiScale(),
-                SpaceJoyConfig.DEFAULT_CUSTOM_INVENTORY_GUI_SCALE,
-                SpaceJoyConfig::setCustomInventoryGuiScale, K + "customInventoryGuiScale.tip"));
-        category.addEntry(eb.startIntSlider(
-                        Component.translatable(K + "customInventoryScale"),
-                        SpaceJoyConfig.getCustomInventoryScale(),
-                        SpaceJoyConfig.MIN_INVENTORY_SCALE, SpaceJoyConfig.MAX_INVENTORY_SCALE)
-                .setDefaultValue(SpaceJoyConfig.DEFAULT_INVENTORY_SCALE)
-                .setTextGetter(v -> Component.translatable(K + "customInventoryScale.value", v))
-                .setSaveConsumer(SpaceJoyConfig::setCustomInventoryScale)
-                .setTooltip(Component.translatable(K + "customInventoryScale.tip"))
-                .build());
-        category.addEntry(toggle(eb, K + "recipeBookScroll", SpaceJoyConfig.isRecipeBookScroll(),
-                SpaceJoyConfig.DEFAULT_RECIPE_BOOK_SCROLL,
-                SpaceJoyConfig::setRecipeBookScroll, K + "recipeBookScroll.tip"));
-
-        // ---- 聊天 ----
-        category.addEntry(section(eb, K + "section.chat"));
-        category.addEntry(toggle(eb, K + "chatHistory", SpaceJoyConfig.isChatHistory(),
-                SpaceJoyConfig.DEFAULT_CHAT_HISTORY,
-                SpaceJoyConfig::setChatHistory, K + "chatHistory.tip"));
-        // 100 到 16384 跨度太大，滑块上一格就是一百多条，所以和保留数一样用输入框。
-        category.addEntry(eb.startIntField(
-                        Component.translatable(K + "chatHistoryLength"),
-                        SpaceJoyConfig.getChatHistoryLength())
-                .setDefaultValue(SpaceJoyConfig.DEFAULT_CHAT_HISTORY_LENGTH)
-                .setMin(SpaceJoyConfig.MIN_CHAT_HISTORY_LENGTH)
-                .setMax(SpaceJoyConfig.MAX_CHAT_HISTORY_LENGTH)
-                .setSaveConsumer(SpaceJoyConfig::setChatHistoryLength)
-                .setTooltip(Component.translatable(K + "chatHistoryLength.tip"))
-                .build());
-
-        // ---- 旁观 ----
-        category.addEntry(section(eb, K + "section.spectator"));
-        category.addEntry(toggle(eb, K + "spectatorTeleport", SpaceJoyConfig.isSpectatorTeleport(),
-                SpaceJoyConfig.DEFAULT_SPECTATOR_TELEPORT,
-                SpaceJoyConfig::setSpectatorTeleport, K + "spectatorTeleport.tip"));
     }
 
     /** 分区小标题：只做视觉分隔，不加折叠。 */
@@ -368,6 +367,18 @@ public final class SpaceJoyConfigScreen {
                 .setSaveConsumer(SpaceJoyConfig::setOffhandTorchKeepCount)
                 .setTooltip(Component.translatable(K + "offhandTorchKeepCount.tip"))
                 .build());
+
+        // ---- 装备 ----
+        category.addEntry(section(eb, K + "section.equipment"));
+        category.addEntry(toggle(eb, K + "autoSwitchElytra", SpaceJoyConfig.isAutoSwitchElytra(),
+                SpaceJoyConfig.DEFAULT_AUTO_SWITCH_ELYTRA,
+                SpaceJoyConfig::setAutoSwitchElytra, K + "autoSwitchElytra.tip"));
+
+        // ---- 旁观 ----
+        category.addEntry(section(eb, K + "section.spectator"));
+        category.addEntry(toggle(eb, K + "spectatorTeleport", SpaceJoyConfig.isSpectatorTeleport(),
+                SpaceJoyConfig.DEFAULT_SPECTATOR_TELEPORT,
+                SpaceJoyConfig::setSpectatorTeleport, K + "spectatorTeleport.tip"));
 
         if (!ea) {
             category.addEntry(note(eb, K + "missing.everlastingabilities"));

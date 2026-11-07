@@ -93,6 +93,7 @@
   "spacejoy_mod.config.chatHistoryLength": "History length",
   "spacejoy_mod.config.chatHistoryLength.tip": "How many messages chat and the input box history keep each, from 100 to 16384, default 16384 (vanilla is 100). More messages use more memory, roughly a few MB at 16384. Applies immediately; messages already held are trimmed to the new limit when the next message arrives.",
   "spacejoy_mod.config.section.chat": "Chat",
+  "spacejoy_mod.config.section.recipeBook": "Recipe book",
   "spacejoy_mod.config.section.building": "Building",
   "spacejoy_mod.config.section.equipment": "Equipment",
   "spacejoy_mod.config.section.freeCamera": "Free camera",
