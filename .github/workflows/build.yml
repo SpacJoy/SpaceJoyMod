@@ -1,0 +1,156 @@
+# 构建并发布 SpaceJoyMod。
+#
+# 触发方式：
+#   1. 推 v*.*.* 标签 → 构建 + 发布到 GitHub Release（正式版）
+#   2. 在 Actions 页面手动触发 → 构建 + 上传 artifact，不发布
+#
+# 发布正文优先从 CHANGELOG.md 里抠对应版本那一节；抠不到就退回 git log。
+# 所以**发版前先把 CHANGELOG.md 补好**，Release 页面才会是对的内容。
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+# 同一分支/标签的旧构建直接作废，避免连推两次时两个 job 抢着传同一个 Release。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # 生成 changelog 要取上一个标签和提交区间，浅克隆不够。
+          fetch-depth: 0
+
+      - name: Setup Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # 标签和 gradle.properties 的 version 必须是同一个号：不然打完包发现 Release 叫
+      # v0.16.0、jar 里写的还是 0.15.0，发出去的产物对不上号。打错标签就让 CI 拦下来。
+      - name: Check tag matches version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tagVersion = '${{ github.ref_name }}' -replace '^v', ''
+          # gradle.properties 历史上混过非 UTF-8 字节，按 ISO-8859-1 读才不炸。
+          $text = [System.IO.File]::ReadAllText('gradle.properties', [System.Text.Encoding]::GetEncoding(28591))
+          $m = [regex]::Match($text, '(?m)^version=(\d+\.\d+\.\d+)')
+          if (-not $m.Success) { throw 'gradle.properties 里没有 version=x.y.z' }
+          $declared = $m.Groups[1].Value
+          if ($declared -ne $tagVersion) {
+            throw "标签是 v$tagVersion，但 gradle.properties 的 version 是 $declared。先跑 ./gradlew bumpVersion -Pbump=xxx 再打标签。"
+          }
+          Write-Host "version OK: $declared"
+
+      # gradlew 在仓库里的 mode 是 100644（不带可执行位），Linux 上直接跑报
+      # "Permission denied"，所以先补执行位再交给 sh。
+      - name: Build
+        run: |
+          chmod +x gradlew
+          sh ./gradlew build --no-daemon --stacktrace
+
+      # libs/ 在 .gitignore 里，CI 上靠 downloadLibs 现下，所以这一步会真有输出。
+      # 留着方便排查“CI 编过了但本机编不过”这类版本漂移问题。
+      - name: Show resolved compile libs
+        run: ls -la libs/ || true
+
+      # sources jar 对使用者没用，直接删掉，免得后面两处上传都要写排除规则。
+      - name: Drop sources jar
+        run: rm -f build/libs/*-sources.jar
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spacejoy-mod
+          path: build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 90
+
+      # 从 CHANGELOG.md 抠出本版本那一节，写进 step output 供发布用。
+      # 参照 Remote-Controls 的做法：优先 CHANGELOG.md，抠不到退回 git log。
+      - name: Generate release body
+        if: startsWith(github.ref, 'refs/tags/')
+        id: body
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+          $tagName = '${{ github.ref_name }}'
+          $version = $tagName -replace '^v', ''
+          Write-Host "tag=$tagName version=$version"
+          # Release 标题用：沿用已有的 "SpaceJoyMod 0.15.0" 写法。
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+          # 正文主体：CHANGELOG.md 里 "# V<version>" 开头到下一个 "# V" 之前。
+          $body = ''
+          if (Test-Path 'CHANGELOG.md') {
+            $md = Get-Content 'CHANGELOG.md' -Raw -Encoding UTF8
+            $escaped = [regex]::Escape($version)
+            # 版本号后面可能跟日期也可能不跟，两种都吃。
+            $pattern = "(?ms)^#\s*V$escaped\b[\s\S]*?(?=^#\s*V\d+\.\d+\.\d+\b|\Z)"
+            $m = [regex]::Match($md, $pattern)
+            if ($m.Success) {
+              # 去掉第一行标题（Release 页面自己会显示版本号），去掉尾部的 *** 分隔线。
+              $lines = $m.Value -split "`r?`n"
+              $body = (($lines | Select-Object -Skip 1) -join "`n").Trim()
+              $body = $body -replace '(?m)^\*\*\*\s*$', ''
+              $body = $body.Trim()
+              Write-Host "changelog hit: $($body.Length) chars"
+            } else {
+              Write-Host "changelog miss for V$version"
+            }
+          }
+
+          if ([string]::IsNullOrWhiteSpace($body)) {
+            # 兜底：拿上一个标签到 HEAD 的提交标题。
+            $tags = @(git tag --sort=-version:refname)
+            $prev = $tags | Where-Object { $_ -ne $tagName } | Select-Object -First 1
+            if ($prev) {
+              $log = git log --pretty=format:'- %s (%h)' "$prev..HEAD"
+              $compare = "https://github.com/${{ github.repository }}/compare/$prev...$tagName"
+            } else {
+              $log = git log --pretty=format:'- %s (%h)'
+              $compare = "https://github.com/${{ github.repository }}/commits/$tagName"
+            }
+            $body = "### 🔄 更新内容`n`n$($log -join "`n")`n`n完整对比：$compare"
+            Write-Host "fallback to git log: $($body.Length) chars"
+          }
+
+          # 多行输出走 delimiter，避免换行被 GITHUB_OUTPUT 的 k=v 解析吃掉。
+          $delim = "EOF_$([guid]::NewGuid().ToString('N'))"
+          "body<<$delim" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          $body | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          $delim | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          # 沿用此前两个 Release 的命名：SpaceJoyMod 0.15.0
+          name: SpaceJoyMod ${{ steps.body.outputs.version }}
+          body: ${{ steps.body.outputs.body }}
+          draft: false
+          prerelease: false
+          files: build/libs/*.jar

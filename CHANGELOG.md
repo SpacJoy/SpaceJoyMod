@@ -4,6 +4,28 @@
 
 ***
 
+# V0.16.0 (2026-11-07)
+
+**接入 GitHub Actions：推标签自动构建并发版，编译依赖改由 CI 现下**\
+Full Changelog (相对于 0.15.0): [https://github.com/SpacJoy/SpaceJoyMod/compare/v0.15.0...v0.16.0](https://github.com/SpacJoy/SpaceJoyMod/compare/v0.15.0...v0.16.0)
+
+## ✨ 持续集成
+
+- **推 `v*.*.*` 标签就自动构建并发版**：`.github/workflows/build.yml` 跑在 `ubuntu-latest`、Java 25，构建完把 `build/libs/*.jar`（排除 sources）传成 Release 附件。Actions 页面手动触发则只构建 + 上传 artifact，不发版。
+- **Release 正文从 `CHANGELOG.md` 抠**：按 `^#\s*V<版本>` 定位到当前版本那一节，去掉标题行和尾部 `***` 直接当正文；抠不到才退回 `git log` 的提交标题列表。所以发版前必须先把 `CHANGELOG.md` 补好。
+- **CI 拦一道版本号**：标签号与 `gradle.properties` 的 `version` 不一致就直接失败，避免发出「Release 叫 v0.16.0、jar 里写的 0.15.0」的产物。`gradle.properties` 按 ISO-8859-1 读，因为首行注释里有非 UTF-8 字节。
+
+## 🛠️ 构建
+
+- **新增 `downloadLibs`：`libs/` 空的机器自己拉软依赖**。`libs/` 在 `.gitignore` 里（TaCZ 一个 jar 就 57MB，不可能进仓库），CI 上没有实例 mods 目录可供 `syncLibs` 拷贝，之前等于无法构建。
+  - 12 个 jar 全部写死**版本号 + sha1 + CDN 直链**，不用 Modrinth 的「最新版本」接口 —— 构建要可复现，上游半夜发新版不该让今天的标签打出另一个 jar
+  - 先写 `.part` 再改名，下载中断不会留下 sha1 对不上的半截文件
+  - 文件已在就跳过（打印 `have`）或保留（本机版本与锁定版本不同时打印 `keep`），所以本机开发等于空跑，也不会被覆盖成本机的另一版
+  - `compileJava` 同时 `dependsOn syncLibs` 和 `dependsOn downloadLibs`，两条路各管一端
+- **TaCZ 改用社区移植版**：官方 `1.1.8+fabric.26.3.R1-hotfix3` 只在 CurseForge，没有免 key 直链；`tacz-refabricated-unofficial-port` 在 Modrinth 上有 26.3 构建。混入用到的 `DataHolder` 成员（`dataMap` / `<init>` / `get` / `set` / `clean` / `gatherDirty` / `gatherAll`）两边 `javap` 签名完全一致，实测换 jar 后编译产物字节相同。
+- **`xaerolib.jar` 那条隐式依赖已写明**：它在 `libs/` 里却既不在 `compileOnly files(...)` 也不在 `syncLibs` 名单里。小地图混入实际用的是 `xaerominimap.jar` 内嵌在 `META-INF/jars` 里的 xaerolib 类，所以编译一直没报错 —— 记录一笔免得以后误删。
+
+***
 # V0.15.0 (2026-11-07)
 
 **配方书支持鼠标滚轮翻页，版本号收敛为单一真源**\

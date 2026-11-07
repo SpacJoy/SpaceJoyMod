@@ -50,6 +50,138 @@ tasks.register('syncLibs', Copy) {
     into(layout.projectDirectory.dir('libs'))
 }
 
+// CI 专用：实例 mods 目录不存在的机器上（GitHub Actions），从 Modrinth CDN 按固定
+// 版本下载同一批软依赖 jar 到 libs/。
+//
+// 为什么不直接把 libs/ 提交进仓库：TaCZ 一个 jar 就 57MB，仓库会被撑爆；而且这些 jar
+// 都是别人的产物，跟着上游发版更新才好维护。
+//
+// 为什么用固定 url + sha1 而不是 Modrinth 的 "最新版本" 接口：构建要可复现，上游半夜发
+// 新版本不该让今天的 tag 构建出另一个 jar。想升级就改这里的版本号和 sha1。
+//
+// 已有的文件只要 sha1 对得上就跳过，所以本地开发（syncLibs 已经填好 libs/）等于空跑。
+tasks.register('downloadLibs') {
+    description = '从 Modrinth 下载编译期软依赖到 libs/（CI 用，本地已有则跳过）'
+    // 12 个 jar 加起来 ~70MB，其中 TaCZ 一个就 57MB，默认 10 分钟够。
+    timeout = java.time.Duration.ofMinutes(30)
+
+    def libDir = layout.projectDirectory.dir('libs').asFile
+
+    // name 是落盘后的固定文件名（与 syncLibs 的 rename 规则一致），compileOnly 引用的就是它。
+    def artifacts = [
+        [name: 'jade.jar', ver: '26.3.5+fabric',
+         file: 'Jade-mc26.3-Fabric-26.3.5.jar',
+         sha1: 'da61413c586c8918c14e2bbfdc808ce2d56ea9df',
+         url: 'https://cdn.modrinth.com/data/nvQzSEkH/versions/71CTWqdE/Jade-mc26.3-Fabric-26.3.5.jar'],
+        [name: 'everlastingabilities.jar', ver: '26.3-2.5.10-425',
+         file: 'everlastingabilities-26.3-fabric-2.5.10-425.jar',
+         sha1: '08c9e0716452daa634530140758df6b697782ca5',
+         url: 'https://cdn.modrinth.com/data/xDwJf4pi/versions/6TiaOor9/everlastingabilities-26.3-fabric-2.5.10-425.jar'],
+        [name: 'cyclopscore.jar', ver: '26.3-1.30.0-1212',
+         file: 'cyclopscore-26.3-fabric-1.30.0-1212.jar',
+         sha1: '637be82ada2842273d4b99054105f1aece3ba19d',
+         url: 'https://cdn.modrinth.com/data/Z9DM0LJ4/versions/wHfFfh2X/cyclopscore-26.3-fabric-1.30.0-1212.jar'],
+        [name: 'cloth-config.jar', ver: '26.3.159+fabric',
+         file: 'cloth-config-fabric-26.3.159.jar',
+         sha1: '9a5cce069380a2047250831dcb19f4ef1b15872d',
+         url: 'https://cdn.modrinth.com/data/9s6osm5g/versions/fg2uyxOW/cloth-config-fabric-26.3.159.jar'],
+        [name: 'modmenu.jar', ver: '21.0.0',
+         file: 'modmenu-21.0.0.jar',
+         sha1: '66ec40f1cd0c037ddca2b5fc6b4b976d479c18e8',
+         url: 'https://cdn.modrinth.com/data/mOgUt4GM/versions/kyy7dbrZ/modmenu-21.0.0.jar'],
+        [name: 'sodium.jar', ver: 'mc26.3-0.9.3-beta.1-fabric',
+         file: 'sodium-fabric-0.9.3-beta.1+mc26.3.jar',
+         sha1: '1e6aec741b4134258ba1d7d458bae96a2e8e187e',
+         url: 'https://cdn.modrinth.com/data/AANobbMI/versions/g6ju16VJ/sodium-fabric-0.9.3-beta.1%2Bmc26.3.jar'],
+        [name: 'iris.jar', ver: '1.11.7+26.3-fabric',
+         file: 'iris-fabric-1.11.7+mc26.3.jar',
+         sha1: 'fa03640ba1e4ef2f7ae3619c6373a06e46d0ba2c',
+         url: 'https://cdn.modrinth.com/data/YL57xq9U/versions/vTN4NRGW/iris-fabric-1.11.7%2Bmc26.3.jar'],
+        [name: 'jei.jar', ver: '31.17.0.109',
+         file: 'jei-26.3-fabric-31.17.0.109.jar',
+         sha1: '8484d4cbaf9f4d25100a7123a35ed16fc00d2f2f',
+         url: 'https://cdn.modrinth.com/data/u6dRKJwZ/versions/hif1VmML/jei-26.3-fabric-31.17.0.109.jar'],
+        [name: 'buffmobs.jar', ver: '4.0.1+mc26.1-fabric',
+         file: 'buffmobs-4.0.1+mc26.1-fabric.jar',
+         sha1: 'e195233712573421be3173435c8f5eece01f3b0d',
+         url: 'https://cdn.modrinth.com/data/4GYCwwms/versions/uVJzzoBR/buffmobs-4.0.1%2Bmc26.1-fabric.jar'],
+        // TaCZ 用的是社区维护的 26.3 移植版：官方 1.1.8+fabric.26.3.R1-hotfix3 只在 CurseForge，
+        // 没有免 key 的直链。移植版的 DataHolder 签名与本工程混入用到的完全一致
+        // （javap 对过：dataMap / <init> / get / set / clean / gatherDirty / gatherAll 全同）。
+        [name: 'tacz.jar', ver: '0.8.6-beta1+fabric26.3',
+         file: 'TACZ-Refabricated-26.3-0.8.6-beta1+fabric26.3.jar',
+         sha1: '9ed893cef5c3eb4c8e45dfb09dd403d22509e034',
+         url: 'https://cdn.modrinth.com/data/lLryDmIs/versions/oeiH7BVM/TACZ-Refabricated-26.3-0.8.6-beta1%2Bfabric26.3.jar'],
+        [name: 'xaerominimap.jar', ver: 'fabric-26.3-26.6.2',
+         file: 'xaerominimap-fabric-26.3-26.6.2.jar',
+         sha1: '9b44e5718f9258ed32283a391e19a1d46464188a',
+         url: 'https://cdn.modrinth.com/data/1bokaNcj/versions/MfxfgXaO/xaerominimap-fabric-26.3-26.6.2.jar'],
+        [name: 'swthb.jar', ver: '1.4',
+         file: 'simple-warp-tpa-home-back-26.2.3-1.4.jar',
+         sha1: '61b8f2bcd5dc5daa830089b38ff5cbbd2d467b21',
+         url: 'https://cdn.modrinth.com/data/4Ywm3d1c/versions/Or9vuzmp/simple-warp-tpa-home-back-26.2.3-1.4.jar'],
+    ]
+
+    doLast {
+        libDir.mkdirs()
+        def missing = []
+        artifacts.each { art ->
+            def target = new File(libDir, art.name as String)
+            if (!target.isFile()) {
+                missing << art
+                return
+            }
+            // 本地开发时 libs/ 由 syncLibs 从实例 mods 目录填，版本可能和下面的固定值不同
+            // （比如本机装的是官方 TaCZ）。文件已经在了就直接用，不覆盖 —— 编译期只要 API
+            // 对得上就行，没必要为了对齐 sha1 去动开发者本机的 jar。
+            def actual = sha1Of(target)
+            println(actual == art.sha1
+                ? "have  ${art.name}  (${art.ver})"
+                : "keep  ${art.name}  (本机版本，与 CI 锁定版本 ${art.ver} 不同，跳过)")
+        }
+        if (missing.isEmpty()) {
+            println 'libs/ 已齐全，跳过下载'
+            return
+        }
+        missing.each { art ->
+            def target = new File(libDir, art.name as String)
+            println "fetch ${art.name}  (${art.ver})  <- ${art.url}"
+            def tmp = new File(libDir, "${art.name}.part")
+            // 先落 .part 再改名：下载中途失败不会留下一个 sha1 对不上的半截文件，
+            // 下次重跑时能正常判定为"缺失"。
+            tmp.withOutputStream { os ->
+                new URL(art.url as String).openStream().withCloseable { is ->
+                    os << is
+                }
+            }
+            def actual = sha1Of(tmp)
+            if (actual != art.sha1) {
+                tmp.delete()
+                throw new GradleException(
+                    "${art.name} 下载后 sha1 不符：期望 ${art.sha1}，实际 ${actual}（${art.url}）")
+            }
+            if (target.exists() && !target.delete()) {
+                throw new GradleException("无法覆盖 ${target}（文件被占用？）")
+            }
+            if (!tmp.renameTo(target)) {
+                throw new GradleException("无法把 ${tmp} 改名为 ${target}")
+            }
+        }
+        println "libs/ 就绪：${artifacts.size()} 个 jar"
+    }
+}
+
+/** 算文件的 sha1，用于校验下载结果与跳过已就绪的 jar。 */
+def sha1Of(File f) {
+    def md = java.security.MessageDigest.getInstance('SHA-1')
+    f.withInputStream { is ->
+        byte[] buf = new byte[65536]
+        int n
+        while ((n = is.read(buf)) > 0) md.update(buf, 0, n)
+    }
+    return md.digest().collect { String.format('%02x', it) }.join()
+}
+
 dependencies {
     minecraft "com.mojang:minecraft:26.3"
     // 26.1 起 Minecraft 不再混淆，官方类名直接可用，因此没有映射声明。
@@ -68,7 +200,11 @@ dependencies {
 }
 
 tasks.named('compileJava').configure {
+    // 本地开发靠 syncLibs 从实例 mods 目录拿 jar；CI 里没有实例目录，改由 downloadLibs
+    // 从 Modrinth 拉。两者都排在编译前，且 syncLibs 先跑 —— 本机已经填好的文件
+    // downloadLibs 会跳过，不会白下 70MB。
     dependsOn tasks.named('syncLibs')
+    dependsOn tasks.named('downloadLibs')
 }
 
 // 版本号的唯一来源是 gradle.properties 的 version：jar 文件名和 jar 内 fabric.mod.json 都从它派生。

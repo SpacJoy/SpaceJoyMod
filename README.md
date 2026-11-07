@@ -198,6 +198,7 @@ java.util.ConcurrentModificationException
 ./gradlew bumpVersion -Pbump=patch   # 改版本号（major / minor / patch，不带参数只打印当前值）
 ./gradlew installToInstance     # 装进实例，顺带清掉旧身份的 jar
 ./gradlew syncLibs              # 从实例 mods 同步 Jade/EA/CyclopsCore/ClothConfig/ModMenu/TaCZ 到 libs/
+./gradlew downloadLibs          # 反过来：libs/ 空的机器（CI）从 Modrinth 按锁定版本下载
 ./gradlew verifyPolymerTargets  # 校验 mixin 目标类在 polymer-bundled 的内嵌 jar 里确实存在
 ./gradlew listJarClasses -Pjar=<jar> -Pprefix=<包前缀>    # 查 jar 里有哪些类
 ./gradlew findClass -Pjar=<jar> -Ppattern=<片段>          # 连 META-INF/jars 里的内嵌 jar 一起搜
@@ -207,6 +208,28 @@ java.util.ConcurrentModificationException
 `-PinstanceMods="<mods 目录>"` 覆盖默认实例路径。
 
 版本号只有一个真源：`gradle.properties` 的 `version`。jar 文件名、jar 内 `fabric.mod.json` 的 `version` 都由它来。`build` 会自动跑 `verifyModVersion` 核对这三处一致，不一致直接构建失败——之前踩过 `processResources` 把 `expand` 的变量当不成输入、改完版本号后任务仍然 UP-TO-DATE、jar 里留着旧号的坑，现在靠 `inputs.property 'version', version` 堵住了。
+
+### 编译期软依赖从哪来
+
+`libs/` 里的 12 个第三方 jar **不进仓库**（TaCZ 一个就 57MB），两条路补齐：
+
+| 场景 | 任务 | 行为 |
+| --- | --- | --- |
+| 本机开发 | `syncLibs` | 从实例 `mods/` 目录按文件名模式拷进 `libs/` 并改名 |
+| CI / 新机器 | `downloadLibs` | 从 Modrinth CDN 按**锁定版本 + sha1** 下载 |
+
+两个任务都排在 `compileJava` 前面，`syncLibs` 先跑；`downloadLibs` 只看文件在不在——已经存在的 jar 一律跳过并打印 `keep`，所以本机不会白下 70MB，也不会被覆盖成 CI 锁的版本。要升级某个依赖，改 `build.gradle` 里 `downloadLibs` 的 `artifacts` 表（版本号、sha1、url 三处），然后把本机 `libs/` 里那个 jar 删掉重跑一次。
+
+TaCZ 用的是 Modrinth 上社区维护的 26.3 移植版（官方 `1.1.8+fabric.26.3.R1-hotfix3` 只在 CurseForge，没有免 key 直链）。混入用到的 `DataHolder` 那几个成员两边签名完全一致，换过一版实测编译产物字节一致。
+
+## 持续集成
+
+`.github/workflows/build.yml`：
+
+- 推 `v*.*.*` 标签 → 构建 + 发布 GitHub Release（正文从 `CHANGELOG.md` 抠当前版本那一节，抠不到退回 git log）
+- Actions 页面手动触发 → 只构建 + 上传 artifact，不发版
+
+发版前 `CHANGELOG.md` 必须先补好，否则 Release 正文只是提交标题列表。release 标题沿用 `SpaceJoyMod <版本>`；CI 还会校验标签号和 `gradle.properties` 的 `version` 一致，不一致直接失败。
 
 ## 结构
 
