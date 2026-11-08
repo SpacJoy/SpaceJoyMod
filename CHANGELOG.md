@@ -4,6 +4,45 @@
 
 ***
 
+# V0.18.0 (2026-11-08)
+
+**新增「BuffMobs 状态表裁剪」，修掉条目涨到上万后每次冷启动必被 Watchdog 强杀的问题**\
+Full Changelog (相对于 0.17.0): [https://github.com/SpacJoy/SpaceJoyMod/compare/v0.17.0...v0.18.0](https://github.com/SpacJoy/SpaceJoyMod/compare/v0.17.0...v0.18.0)
+
+## 🐛 BuffMobs 状态表裁剪
+
+- **崩服根因是「只涨不降的表」加上一段 O(n²) 的解码**：BuffMobs 给每只生物存一份 `MobState`（精英 / 词条 / 护甲槽位 / 召唤冷却…），键是生物 UUID，只在「生物死亡」时删条目。自然消失、区块卸载后再没回来的那些全留在表里。存档里涨到 19747 条之后，`BuffMobsWorldData.CODEC` 用的 `Codec.unboundedMap` 走 `BaseMapCodec` 的 `Object2ObjectArrayMap.putIfAbsent` —— 每插一条线性扫一遍已有键。实测卡在 `SavedDataStorage.readSavedData` 里超过 60 秒，服务端 Watchdog 判「单 tick 卡死」直接强杀，连崩两次都是同一个位置。
+  - 关键点：**从第一次 `BuffMobsWorldData.get()` 开始整张表就会被解码进内存**，之后再裁救不了这次启动。所以裁剪必须赶在世界打开之前动磁盘上的 NBT 文件
+- **分两段，各管一半**：
+  - `SERVER_STARTING`（`runServer` 里 `initServer` 之前，世界还没打开）：直接 `NbtIo.readCompressed` 读 `world_data.dat`，按优先级保留上限条数，其余从 `data.mobStates` 里删掉再 `ATOMIC_MOVE` 写回。这一段自己遍历 compound，绕开 BuffMobs 的 codec，踩不到那个 O(n²)
+  - `END_SERVER_TICK`：每 200 tick（10 秒）看一次内存里的表，涨到「上限 × 触发倍数」（默认 4 倍）时一次性裁回上限，管「跑起来以后又被填满」的增长
+    - **不在刚过上限时裁**：第一版是 `over = size - limit > 0` 就删，结果表长期贴着 6000 条，每 10 秒刷一行「删掉 13 条（当前 6000 条，上限 6000）」——日志噪音只是表象，真正的问题是每次检查都要为删十几条扫一遍整张表。现在改成攒够一批（默认 4 × 6000 = 24000 条）再一次性裁回 6000，日志只出现在批次边界上
+    - 批次处理后记下当时的规模，表再涨出「上限的 1/20 或 256 条」（取大）才重新扫，避免表里剩下全是不可删的精英/词条时每 10 秒白扫一遍
+    - 一条都删不动时只在 `debugLog` 开着时打一行，说明表和判据都已经到头了
+  - 首次裁剪会在旁边留一份 `world_data.dat.sjbak`；写盘先落 `.sjtmp` 再原子改名，中途崩不会留下半个文件
+- **删哪些、留哪些**：按 `MobState` 字段是不是还等于默认值分五档 —— 精英（4）> 带词条（3）> 带护甲槽位（2）> 只留了召唤 / 血月 / 狂暴 / 冷却痕迹（1）> 纯占位、只有「已评估」标记（0）。超上限时从第 0 档开始删，还不够才动第 1 档；精英、词条、护甲槽位这些永远不会被删
+  - 判据直接来自默认构造 `elite=false, trait="", armorSlotsMask=0, lastTeleportTick=-100000, packLastPullTick=Long.MIN_VALUE`，等价于「没留下任何身份信息」
+  - 实测这份存档：4 档 533 条、3 档 2846 条、2 档 3857 条、1 档 796 条、0 档 11715 条。默认上限 6000（对应约 0.05 秒的纯插入开销）会开始动 2 档，想全留护甲就把上限调到 7500 以上
+
+## 🐛 命名怪不会被裁
+
+- **`hasCustomName()` 分不出「玩家命名」和「BuffMobs 自动起名」**，两者走同一个字段。所以这里不猜，改成登记：`ENTITY_LOAD` 时凡是带自定义名字的生物就把 UUID 记进 `<存档>/…/buffmobs/spacejoy_named_mobs.dat`（跟着存档走，上限 8192 条），两个裁剪阶段都把这批 UUID 整批排除。命名怪即使在没加载的区块里，也照样安全
+- 就算真有一条被裁了，被裁的也只是状态记录、不是生物：`EliteMobHandler.applyElite` 只在 `getCustomName() == null` 时才写名字，实体 NBT 里的名字原样在，重新加载时只是会重新抽一次精英 / 词条
+
+## 🐛 头顶标签改挂名字下方，不再冒充「被命名牌命名过」
+
+- **根因是占错了通道**：`EntityRenderState.nameTag` 是原版判定「这只生物有名字」的唯一通道，往里面写标签等于凭空给生物起名 —— 没名字的怪看起来就像被命名牌命名过，有名字的怪还得反过来把名字挤走。`scoreText` 是原版名字下方那一行（计分板 `BELOW_NAME` 用的同一格），写它不动任何名字
+- **现在的规则**：标签固定写 `scoreText`，`nameTag` 一个字都不碰。有命名牌名字的生物是「名字在上、标签在下」；没名字的标签正好落在名字本该在的位置（`submitNameDisplay` 只在 `nameTag` 非空时才向下平移 9pt）；计分板已经占着那一格时让给计分板
+- 早期那个「把名字挪进 `scoreText`、标签占 `nameTag`」的反向分支整个删掉 —— 那才是真正改玩家命名显示的写法
+- **可见距离对齐到原版那一格**：原来写死 64 格，那是名字栏（`Attributes.NAME_TAG_DISTANCE`）的距离；标签占的是名字下方那一格，原版给它的 `Attributes.BELOW_NAME_DISTANCE` 默认只有 10 格。现在默认 10，并做成「功能」页的滑块（4~64，默认 10），改完立刻生效
+- 距离判断挪进 `ClientMobLabel` 自己算：原版 `extractNameTags` 在 TAIL 注入点之前就把 `scoreText` 按 10 格清成 `null` 了，靠它判等于白判
+
+## 🛠️ 配置
+
+- 新增服务端权威开关（「修复」页）：`buffMobsStateGuard` 默认开启、`buffMobsStateLimit` 默认 6000（范围 500~20000，滑块）、`buffMobsStateTrimFactor` 默认 4（范围 1~16，滑块，调到 1 就是一过上限就裁的旧行为），改完广播给所有客户端。没装 BuffMobs 时这三项置灰并给出原因
+
+***
+
 # V0.17.0 (2026-11-08)
 
 **聊天记录上限可配，移植 More Chat History**\

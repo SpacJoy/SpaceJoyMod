@@ -1,0 +1,13 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "net.spacejoy.mod.mixin.buffmobs",
+  "compatibilityLevel": "JAVA_25",
+  "plugin": "net.spacejoy.mod.mixin.SpaceJoyMixinPlugin",
+  "mixins": [
+    "BuffMobsWorldDataAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -217,6 +217,40 @@ public final class SpaceJoyConfigScreen {
                 .setTooltip(tooltip(K + "irisOutlineFix.tip", iris, "Iris"))
                 .build(), iris));
 
+        // BuffMobs 状态表裁剪：开关 + 上限 + 触发倍数是一组，单独看没意义，所以紧挨着放。
+        // 后两项都会写进服务端配置并广播，所以同样要按 canEdit 置灰。
+        boolean buffmobs = CompatFlags.BUFFMOBS_LOADED;
+        category.addEntry(gate(eb.startBooleanToggle(
+                        Component.translatable(K + "buffMobsStateGuard"),
+                        SpaceJoyServerConfig.isBuffMobsStateGuard())
+                .setDefaultValue(SpaceJoyServerConfig.DEFAULT_BUFF_MOBS_STATE_GUARD)
+                .setSaveConsumer(v -> SpaceJoyClientNetwork.sendConfig("buffMobsStateGuard", String.valueOf(v)))
+                .setTooltip(tooltip(K + "buffMobsStateGuard.tip", buffmobs, "BuffMobs"))
+                .build(), buffmobs && SpaceJoyServerConfig.canEdit()));
+
+        category.addEntry(gate(eb.startIntSlider(
+                        Component.translatable(K + "buffMobsStateLimit"),
+                        SpaceJoyServerConfig.getBuffMobsStateLimit(),
+                        SpaceJoyServerConfig.MIN_BUFF_MOBS_STATE_LIMIT,
+                        SpaceJoyServerConfig.MAX_BUFF_MOBS_STATE_LIMIT)
+                .setDefaultValue(SpaceJoyServerConfig.DEFAULT_BUFF_MOBS_STATE_LIMIT)
+                .setTextGetter(v -> Component.translatable(K + "buffMobsStateLimit.value", v))
+                .setSaveConsumer(v -> SpaceJoyClientNetwork.sendConfig("buffMobsStateLimit", String.valueOf(v)))
+                .setTooltip(tooltip(K + "buffMobsStateLimit.tip", buffmobs, "BuffMobs"))
+                .build(), buffmobs && SpaceJoyServerConfig.canEdit()));
+
+        // 范围只有 1~16，滑块最直观：拖到 1 就是一过上限就裁（旧行为）。
+        category.addEntry(gate(eb.startIntSlider(
+                        Component.translatable(K + "buffMobsStateTrimFactor"),
+                        SpaceJoyServerConfig.getBuffMobsStateTrimFactor(),
+                        SpaceJoyServerConfig.MIN_BUFF_MOBS_STATE_TRIM_FACTOR,
+                        SpaceJoyServerConfig.MAX_BUFF_MOBS_STATE_TRIM_FACTOR)
+                .setDefaultValue(SpaceJoyServerConfig.DEFAULT_BUFF_MOBS_STATE_TRIM_FACTOR)
+                .setTextGetter(v -> Component.translatable(K + "buffMobsStateTrimFactor.value", v))
+                .setSaveConsumer(v -> SpaceJoyClientNetwork.sendConfig("buffMobsStateTrimFactor", String.valueOf(v)))
+                .setTooltip(tooltip(K + "buffMobsStateTrimFactor.tip", buffmobs, "BuffMobs"))
+                .build(), buffmobs && SpaceJoyServerConfig.canEdit()));
+
         if (!polymer) {
             category.addEntry(note(eb, K + "missing.polymer"));
         }
@@ -225,6 +259,9 @@ public final class SpaceJoyConfigScreen {
         }
         if (!iris) {
             category.addEntry(note(eb, K + "missing.iris"));
+        }
+        if (!buffmobs) {
+            category.addEntry(note(eb, K + "missing.buffmobsStateGuard"));
         }
     }
 
@@ -346,6 +383,19 @@ public final class SpaceJoyConfigScreen {
                     }
                 })
                 .setTooltip(tooltip(K + "mobLabel.tip", ea, "Everlasting Abilities"))
+                .build(), ea));
+
+        // 距离用滑块而不是输入框：4~64 之间 61 个整数，慢拖能停在任意值上。
+        // 放在开关下面而不是塞进开关的 tooltip，改距离时不用先想清楚开关在哪。
+        category.addEntry(gate(eb.startIntSlider(
+                        Component.translatable(K + "mobLabelDistance"),
+                        SpaceJoyConfig.getMobLabelDistance(),
+                        SpaceJoyConfig.MIN_MOB_LABEL_DISTANCE,
+                        SpaceJoyConfig.MAX_MOB_LABEL_DISTANCE)
+                .setDefaultValue(SpaceJoyConfig.DEFAULT_MOB_LABEL_DISTANCE)
+                .setTextGetter(v -> Component.translatable(K + "mobLabelDistance.value", v))
+                .setSaveConsumer(SpaceJoyConfig::setMobLabelDistance)
+                .setTooltip(tooltip(K + "mobLabelDistance.tip", ea, "Everlasting Abilities"))
                 .build(), ea));
 
         // 副手火把保留：不依赖任何前置模组，原版火把就能用，所以不置灰。

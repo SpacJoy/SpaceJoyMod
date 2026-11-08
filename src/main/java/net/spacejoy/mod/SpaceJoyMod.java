@@ -2,6 +2,7 @@ package net.spacejoy.mod;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
+import net.spacejoy.mod.compat.BuffMobsStateGuard;
 import net.spacejoy.mod.compat.EliteAbilityDrop;
 import net.spacejoy.mod.compat.MobGlow;
 import net.spacejoy.mod.config.SpaceJoyConfig;
@@ -19,8 +20,10 @@ import org.slf4j.LoggerFactory;
  *       （连带 TACZ 配方同步失败、JEI 合成页空掉）</li>
  *   <li>修复：TaCZ 的实体同步数据表是裸 HashMap，服务端 tick 与实体存档读写撞车时
  *       抛 {@code ConcurrentModificationException}（装了 c2me 之后必现）</li>
+ *   <li>修复：BuffMobs 的生物状态表只增不减，条目上万后每次冷启动都要在解码上
+ *       卡满 60 秒，被服务端 Watchdog 判成卡死强杀。这里在开服前把表裁到上限内</li>
  *   <li>功能：Jade 显示生物可掉落的能力（需要 Jade + Everlasting Abilities）</li>
- *   <li>功能：给带能力的生物加头顶标签（走原版命名牌通道，被命名时自动上移让位）</li>
+ *   <li>功能：给带能力的生物加头顶标签（走原版命名牌通道，标签挂在名字下方那一行，不动任何生物的名字）</li>
  *   <li>功能：BuffMobs 精英生物必掉高稀有度能力图腾（需要 BuffMobs + Everlasting Abilities）</li>
  *   <li>功能：按维度切换 Iris 光影包（需要 Iris）</li>
  * </ul>
@@ -51,6 +54,7 @@ public class SpaceJoyMod implements ModInitializer {
         }
         MobGlow.init();
         EliteAbilityDrop.init();
+        BuffMobsStateGuard.init();
         // 副手火把是纯客户端功能，不在这里注册（见 SpaceJoyClient）。
         SpaceJoyServerConfig.load();
         SpaceJoyNetwork.init();

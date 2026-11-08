@@ -28,16 +28,27 @@ import net.spacejoy.mod.config.SpaceJoyConfig;
  * <p><b>标签文本</b>就是 EA 同步到客户端的能力列表（客户端本地就有，不用问服务端）。
  * 结果按实体 id 缓存，{@link #REFRESH_TICKS} 刷新一次 —— 能力几乎不变，没必要每帧重新拼。
  *
- * <p><b>被命名时让位</b>：生物本身有自定义名（{@code hasCustomName()}）时，原版会占掉
- * {@code nameTag} 这个位置；这时我们把标签塞进 {@code scoreText}，原版会把名字画在上、
- * 标签画在下，两者不会叠在一起。
+ * <p><b>标签写 {@code scoreText}，不写 {@code nameTag}</b>：{@code nameTag} 是原版判定
+ * 「这只生物有名字」的唯一通道 —— 往里面写东西，没名字的生物看起来就像被命名牌命名过，
+ * 有名字的生物又得反过来把名字挤走，两条都不对。所以标签统一挂在名字下方那一行
+ * （计分板 {@code BELOW_NAME} 用的同一格），名字本身一个字都不动：有命名牌名字的，
+ * 名字在上、标签在下；没名字的，标签正好落在名字本该在的位置。计分板占着那一格时让给计分板。
+ *
+ * <p><b>可见距离跟着原版那一格走。</b>原版给名字下方那一行留的可见距离是
+ * {@code Attributes.BELOW_NAME_DISTANCE} 的 10 格（名字栏 {@code NAME_TAG_DISTANCE} 才是 64）。
+ * 标签既然占的是这一格，默认也按 10 格来，配置里可以调到 4~64。
  */
 @Environment(EnvType.CLIENT)
 public final class ClientMobLabel {
     /** 标签文本的刷新间隔（客户端 tick）。 */
     private static final int REFRESH_TICKS = 20;
-    /** 超过这个距离不画标签，和原版命名牌的默认可见距离一致。 */
-    private static final double MAX_DISTANCE = 64.0;
+    /**
+     * 距离兜底上限，只在配置值本身出问题（读成 0 或负数）时才顶上。
+     *
+     * <p>真正的可见距离是 {@link SpaceJoyConfig#getMobLabelDistance()}：默认 10 格，
+     * 跟原版名字下方那一行（{@code Attributes.BELOW_NAME_DISTANCE}）对齐。
+     */
+    private static final double FALLBACK_DISTANCE = 10.0;
     /** 缓存条目的最长空闲时间（客户端 tick），超过就认为那只生物已经不在了。 */
     private static final int CACHE_TTL_TICKS = 1200;
 
@@ -89,7 +100,16 @@ public final class ClientMobLabel {
         }
         // 相机还没设好时 extractNameTags 会提前返回，distanceToCameraSq 留着 0；
         // 这时候不画，免得刚进世界那几帧把全世界的标签都点亮。
-        if (distanceSqr <= 0.0 || distanceSqr > MAX_DISTANCE * MAX_DISTANCE) {
+        if (distanceSqr <= 0.0) {
+            return null;
+        }
+        // 距离限制这里自己判，不交给原版：原版那套 scoreText 距离判断在 TAIL 注入点之前就跑完了，
+        // 拿到的 scoreText 早被清成 null。配置值每帧现读，改完立刻生效，不用等缓存过期。
+        double maxDistance = SpaceJoyConfig.getMobLabelDistance();
+        if (maxDistance <= 0.0) {
+            maxDistance = FALLBACK_DISTANCE;
+        }
+        if (distanceSqr > maxDistance * maxDistance) {
             return null;
         }
 

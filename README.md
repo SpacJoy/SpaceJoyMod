@@ -14,9 +14,10 @@
 | polymer 配方编码修复 | polymer-core | 修好 TACZ 配方同步丢失 → JEI 合成页空掉 |
 | 静音 polymer 的空物品表报错 | polymer-core + JEI | 服务器没发 polymer 物品时 JEI 会收到空表并抛 `ingredients must not be empty`，改成直接跳过 |
 | TaCZ 并发崩溃修复 | TaCZ | TaCZ 存生物数据的表是裸 `HashMap`，服务端 tick 和实体存档读写会同时碰它，装了 c2me 这类多线程区块模组就会撞出 `ConcurrentModificationException` 崩游戏。换成线程安全的表，行为不变 |
+| BuffMobs 状态表裁剪 | BuffMobs | BuffMobs 每只生物存一份状态、只在生物死亡时删，条目只涨不降。一万九千多条的存档冷启动要在解码上卡满 60 秒，被服务端 Watchdog 判成卡死强杀。开服前把表裁到上限内（默认 6000 条）；运行中每 10 秒看一次，涨到上限的 4 倍才一次性裁回上限；被命名牌命名过的生物先登记 UUID，整批跳过 |
 | 补齐 Iris 的描边管线映射 | Iris | 把 `OUTLINE_CULL` / `OUTLINE_NO_CULL` 补进 Iris 的管线表，并静音 `entity_outline` 后处理链的假报错（原版发光效果本身要用） |
 | Jade 显示可掉落能力 | Jade + Everlasting Abilities | 准星指着生物时多一行「可掉落能力」 |
-| 标记带能力的生物 | Everlasting Abilities | 在带能力掉落的生物头顶显示它能掉什么，走原版命名牌渲染，遮挡与光影天然正确 |
+| 标记带能力的生物 | Everlasting Abilities | 在带能力掉落的生物头顶显示它能掉什么，走原版命名牌渲染，遮挡与光影天然正确。标签固定挂在名字下方那一行，不占名字的位置，任何生物的名字都不改 |
 | 副手火把保留 | 无 | 副手那摞火把剩到保留数（默认 1 支）就不再从副手放置，永远留得住最后几支照明；红石火把不受影响 |
 | 按维度切换光影 | Iris | 进维度时按规则换光影包，规则用内置的编辑器改 |
 
@@ -87,17 +88,23 @@
 
 现在是**头顶标签**，走原版命名牌那条渲染通道：
 
-mixin 拦 `EntityRenderer#extractNameTags(Entity, EntityRenderState, float, double, double)` 的 TAIL —— 这是原版唯一决定「这只生物头顶显示什么文本」的地方。它在方法里填 `EntityRenderState.nameTag`（名字）、`scoreText`（名字上方那一行）、`nameTagAttachment`（文本挂点），填完交给 `submitNameDisplay` 去画。深度、遮挡、光影映射全部由原版处理，我们只管塞文本。
+mixin 拦 `EntityRenderer#extractNameTags(Entity, EntityRenderState, float, double, double)` 的 TAIL —— 这是原版唯一决定「这只生物头顶显示什么文本」的地方。它在方法里填 `EntityRenderState.nameTag`（名字）、`scoreText`（名字下方那一行）、`nameTagAttachment`（文本挂点），填完交给 `submitNameDisplay` 去画。深度、遮挡、光影映射全部由原版处理，我们只管塞文本。
 
-两个槽位的用法（`submitNameDisplay` 先画 `scoreText`，再把坐标抬高 `9 × 1.15 × 0.025` 格画 `nameTag`，所以 **`nameTag` 在上、`scoreText` 在下**，这也是原版计分板 belowName 显示在名字下面的原因）：
+**标签固定写 `scoreText`，不写 `nameTag`。** `nameTag` 是原版判定「这只生物有名字」的唯一通道：往里面写文本等于凭空给它起了个名字 —— 没名字的生物看起来就像被命名牌命名过，有名字的生物则要反过来把名字挤走，两条都不对。`scoreText` 是原版名字下方那一行（计分板 `BELOW_NAME` 用的同一格），写它不动任何生物的名字：
 
-- 生物**没有自定义名** → 标签直接占 `nameTag`，跟普通命名牌一模一样；
-- 生物**已经被命名** → 名字让到下面那行 `scoreText`，标签占上面那行 `nameTag`。标签始终在最上面、名字紧贴其下，两者不重叠，这就是「被命名时上移让位」；
-- 下面那行已经被计分板分数占着时，不抢，这次就不显示标签。
+- **有命名牌名字的生物**：名字照旧画在 `nameTag`，能力标签挂在它下面那一行。
+- **没有名字的生物**：只有标签这一行，位置就在名字本该在的地方 —— `submitNameDisplay` 只在 `nameTag` 非空时才向下平移 9pt，所以标签正好贴着挂点，和普通命名牌完全一致。
+- **计分板已经占了「名字下方」**（`scoreText != null`）：不画标签，让给计分板。
+
+早期版本还试过反过来的写法 —— 把名字挪到 `scoreText`、标签占 `nameTag`。那是真正改了玩家的命名：名字的字号、位置、可见距离全由原版按 `nameTag` 这个通道算，挪过去这些属性全变。现在这条分支已经整个删掉。
 
 挂点自己算：原版只有在 `shouldShowName` 为真时才填 `nameTagAttachment`，而大多数带能力的生物本来不该显示名字，那个字段是 null。所以这里直接问 `EntityAttachments` 要 `NAME_TAG` 挂点。
 
-标签文本读的是 Everlasting Abilities 同步到客户端的本地 ability store，纯客户端、服务端零开销，按实体 id 缓存，20 tick 刷新一次。超过 64 格不画（和原版命名牌一致）。
+标签文本读的是 Everlasting Abilities 同步到客户端的本地 ability store，纯客户端、服务端零开销，按实体 id 缓存，20 tick 刷新一次。
+
+**可见距离跟着「名字下方」那一格走，默认 10 格。** 原版给两行文本留的距离不一样：名字栏 `Attributes.NAME_TAG_DISTANCE` 默认 64，名字下方 `Attributes.BELOW_NAME_DISTANCE` 默认 10。标签既然占的是后者，距离也按后者来 —— 配置里「标签可见距离」可以在 4~64 之间调。
+
+注意这个距离判断必须自己做，不能指望原版：`extractNameTags` 里把 `scoreText` 按 `scoreDistance` 清成 `null` 的那几行，在我们的 TAIL 注入点之前就跑完了。所以 `ClientMobLabel` 自己按 `EntityRenderState.distanceToCameraSq` 判一次距离，配置值每帧现读，改完立刻生效。
 
 **服务端仍然只做一件事**：实体加载时清掉 0.6.0 及更早版本遗留的无限时长 `GLOWING` 效果（O(1) 的效果表查找）。那批效果会绕过一切判定，隔着山一直亮。
 
@@ -203,7 +210,9 @@ java.util.ConcurrentModificationException
 
 ## 配置文件
 
-- `config/spacejoy-mod.json` —— 全部开关（总开关、日志、三项修复、七项便利功能、三项功能联动、维度光影；`irisOutlineFix`、`polymerRecipeFix`、`taczConcurrencyFix` 在「修复」页，其中 `irisOutlineFix` **默认关闭**；`recipeBookScroll`、`chatHistory` **默认开启**，`chatHistoryLength` 默认 16384、范围 100~16384）
+- `config/spacejoy-mod.json` —— 客户端开关（总开关、日志、七项便利功能、头顶标签等；`recipeBookScroll`、`chatHistory` **默认开启**，`chatHistoryLength` 默认 16384、范围 100~16384）
+- `config/spacejoy-mod-server.json` —— 服务端权威开关（`waypointEnabled`、`eliteAbilityDrop` + `eliteAbilityMinRarity`、`polymerRecipeFix`、`taczConcurrencyFix`、`quietDisconnectEncodeError`、`buffMobsStateGuard` + `buffMobsStateLimit` + `buffMobsStateTrimFactor`，后三项默认开启 / 6000 条 / 4 倍，范围 500~20000 条、1~16 倍）。这几项在「修复」「联动」页里改，改动经 C2S 交给服务端按 OP 复核后广播
+- `<存档>/dimensions/minecraft/overworld/data/buffmobs/spacejoy_named_mobs.dat` —— 状态表裁剪时保护用的命名怪 UUID 登记表，跟着存档走
 - `config/spacejoy-mod/irisdim/config.json` —— 维度光影的规则列表（界面上也能改）
 - `config/spacejoy-mod/irisdim/discovered.json` —— 进过的维度，带可粘贴的规则模板
 
@@ -258,6 +267,9 @@ net.spacejoy.mod
 ├── compat/EACompat             EA 的全部接触面，EA 缺失时这个类不会被加载
 ├── compat/IrisCompat           Iris 的唯一接触面：补 outline 管线、判定要静音的 fatal
 ├── compat/MobGlow              服务端只负责清掉老版本遗留的无限时长 GLOWING
+├── compat/EliteMobCompat       BuffMobs 的唯一只读接触面（判精英，不碰它的数据）
+├── compat/BuffMobsStateGuard   BuffMobs 状态表裁剪：开服前裁磁盘 + 运行期超触发线一次性裁回上限
+├── mixin/buffmobs/             把 BuffMobsWorldData 的私有 mobStates 表取出来（@Accessor）
 ├── config/SpaceJoyConfig       Gson 读写 config/spacejoy-mod.json
 ├── config/SpaceJoyConfigScreen Cloth Config 八页界面，缺依赖置灰
 ├── config/ScreenLinkEntry      跳转子界面的按钮条目（Cloth 没这类型，自己写的）
@@ -279,14 +291,15 @@ net.spacejoy.mod
                                 + freecam/ 自由相机的一整套拦截
                                 + recipebook/ 配方书滚轮翻页
                                 + MixinChatComponentHistory（聊天记录上限）
-                                + tacz/ TaCZ 数据表换并发容器（唯一一组非 client 混入）
+                                + tacz/ TaCZ 数据表换并发容器
+                                + buffmobs/ BuffMobs 状态表访问器（自带 mixin config）
                                 + IrisPipelinesMixin / IrisLoggingMixin / PolymerJeiCompatibilityMixin
                                 + MixinMinecraftIrisDimSwitch（抢在 Iris 前换包）
                                 + MixinPipelineManagerRebuildGuard（吞掉 Iris 多余的管线销毁）
                                 + SpaceJoyMixinPlugin（按前置决定上不上）
 ```
 
-`spacejoy_mod.mixins.json` 放通用补丁，`spacejoy_mod.client.mixins.json` 只放必须客户端加载的，`spacejoy_mod.compat.mixins.json` 专放「目标模组可能不在」的补丁 —— 它的 `plugin` 是 `SpaceJoyMixinPlugin`，前置缺失时把这些 mixin 整个跳过，而不是靠 `require = 0` 硬吞注入失败。
+`spacejoy_mod.mixins.json` 放通用补丁，`spacejoy_mod.client.mixins.json` 只放必须客户端加载的，`spacejoy_mod.compat.mixins.json`、`spacejoy_mod.tacz.mixins.json`、`spacejoy_mod.buffmobs.mixins.json` 专放「目标模组可能不在」的补丁 —— 它的 `plugin` 是 `SpaceJoyMixinPlugin`，前置缺失时把这些 mixin 整个跳过，而不是靠 `require = 0` 硬吞注入失败。
 
 软依赖铁律：第三方模组的类型只能出现在它自己的 `*Compat` 桥接类里，其余类最多引用 `CompatFlags` 的布尔值。这样前置缺失时不会 `NoClassDefFoundError`。混入是唯一例外 —— 它们直接 import 目标模组的类，但由 `SpaceJoyMixinPlugin` 按前置是否加载决定上不上，没装前置时这些类根本不会被加载。
 

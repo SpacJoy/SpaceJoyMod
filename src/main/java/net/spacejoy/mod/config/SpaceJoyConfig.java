@@ -40,6 +40,23 @@ public final class SpaceJoyConfig {
     public static final boolean DEFAULT_IRIS_OUTLINE_FIX = false;
     public static final boolean DEFAULT_JADE_ABILITY_DISPLAY = true;
     public static final boolean DEFAULT_MOB_LABEL = true;
+    /**
+     * 头顶标签的可见距离默认值：跟原版名字下方那一行（计分板 {@code BELOW_NAME}）对齐成 10 格。
+     *
+     * <p>不是 64：标签挂在名字下方那一格，原版那一格本身就是给「近处才看」的信息准备的
+     * （{@code Attributes.BELOW_NAME_DISTANCE} 默认 10）。名字栏 64 格是另一回事，
+     * 我们并不占它。
+     */
+    public static final int DEFAULT_MOB_LABEL_DISTANCE = 10;
+    /**
+     * 距离下限 4 格：再近就只剩贴脸才看得见，等于把标签关掉了。
+     */
+    public static final int MIN_MOB_LABEL_DISTANCE = 4;
+    /**
+     * 距离上限 64 格：原版名字栏（{@code Attributes.NAME_TAG_DISTANCE}）的默认值。
+     * 再远受实体渲染距离限制，调了也不会更远，只会白给每帧多算几帧标签。
+     */
+    public static final int MAX_MOB_LABEL_DISTANCE = 64;
     public static final boolean DEFAULT_IRIS_DIMENSION_SHADERS = true;
     public static final boolean DEFAULT_ELITE_ABILITY_DROP = true;
     public static final boolean DEFAULT_OFFHAND_TORCH_GUARD = false;
@@ -68,6 +85,8 @@ public final class SpaceJoyConfig {
     private static boolean irisOutlineFix = DEFAULT_IRIS_OUTLINE_FIX;
     private static boolean jadeAbilityDisplay = DEFAULT_JADE_ABILITY_DISPLAY;
     private static boolean mobLabel = DEFAULT_MOB_LABEL;
+    /** 头顶标签的可见距离（格）。超出就不画，也不进缓存。 */
+    private static int mobLabelDistance = DEFAULT_MOB_LABEL_DISTANCE;
     private static boolean irisDimensionShaders = DEFAULT_IRIS_DIMENSION_SHADERS;
     private static boolean eliteAbilityDrop = DEFAULT_ELITE_ABILITY_DROP;
     private static String eliteAbilityMinRarity = "RARE";
@@ -143,6 +162,7 @@ public final class SpaceJoyConfig {
             irisOutlineFix = readBool(root, "irisOutlineFix", irisOutlineFix);
             jadeAbilityDisplay = readBool(root, "jadeAbilityDisplay", jadeAbilityDisplay);
             mobLabel = readBool(root, "mobLabel", mobLabel);
+            mobLabelDistance = clampMobLabelDistance(readInt(root, "mobLabelDistance", mobLabelDistance));
             irisDimensionShaders = readBool(root, "irisDimensionShaders", irisDimensionShaders);
             eliteAbilityDrop = readBool(root, "eliteAbilityDrop", eliteAbilityDrop);
             eliteAbilityMinRarity = readString(root, "eliteAbilityMinRarity", eliteAbilityMinRarity);
@@ -179,6 +199,7 @@ public final class SpaceJoyConfig {
         root.addProperty("irisOutlineFix", irisOutlineFix);
         root.addProperty("jadeAbilityDisplay", jadeAbilityDisplay);
         root.addProperty("mobLabel", mobLabel);
+        root.addProperty("mobLabelDistance", mobLabelDistance);
         root.addProperty("irisDimensionShaders", irisDimensionShaders);
         root.addProperty("eliteAbilityDrop", eliteAbilityDrop);
         root.addProperty("eliteAbilityMinRarity", eliteAbilityMinRarity);
@@ -252,6 +273,11 @@ public final class SpaceJoyConfig {
     /** 背包缩放夹到 1~10。 */
     private static int clampScale(int value) {
         return Math.max(MIN_INVENTORY_SCALE, Math.min(MAX_INVENTORY_SCALE, value));
+    }
+
+    /** 标签距离夹到 4~64 格，手改成 0 或 500 也不会把标签彻底关掉或撑到没有意义。 */
+    private static int clampMobLabelDistance(int value) {
+        return Math.max(MIN_MOB_LABEL_DISTANCE, Math.min(MAX_MOB_LABEL_DISTANCE, value));
     }
 
     /** 聊天记录上限夹到 100~16384，手改成 0 或负数也不会把记录清空。 */
@@ -352,6 +378,17 @@ public final class SpaceJoyConfig {
     public static void setMobLabel(boolean value) {
         ensureLoaded();
         mobLabel = value;
+    }
+
+    /** 头顶标签的可见距离（格），默认 10 —— 和原版名字下方那一行一致。 */
+    public static int getMobLabelDistance() {
+        ensureLoaded();
+        return mobLabelDistance;
+    }
+
+    public static void setMobLabelDistance(int value) {
+        ensureLoaded();
+        mobLabelDistance = clampMobLabelDistance(value);
     }
 
     /** 功能：Iris 按维度切换光影包。 */

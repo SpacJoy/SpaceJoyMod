@@ -35,6 +35,21 @@ public final class SpaceJoyServerConfig {
     public static final boolean DEFAULT_POLYMER_RECIPE_FIX = true;
     public static final boolean DEFAULT_TACZ_CONCURRENCY_FIX = true;
     public static final boolean DEFAULT_QUIET_DISCONNECT_ENCODE_ERROR = true;
+    public static final boolean DEFAULT_BUFF_MOBS_STATE_GUARD = true;
+    /** 状态表留下的条目上限：旧档 19747 条时单次解码卡了 60 秒，6000 条是实测安全量级。 */
+    public static final int DEFAULT_BUFF_MOBS_STATE_LIMIT = 6000;
+    public static final int MIN_BUFF_MOBS_STATE_LIMIT = 500;
+    public static final int MAX_BUFF_MOBS_STATE_LIMIT = 20000;
+    /**
+     * 运行期裁剪的触发倍数：表长到「上限 × 倍数」才一次性裁回上限。
+     *
+     * <p>刚过上限就裁十来条的话，日志每 10 秒刷一行，表也长期贴着上限抖动；
+     * 攒够一批再一次性裁干净，日志和开销都只出现在批次边界上。
+     * 1 = 一过上限就裁（旧行为）。
+     */
+    public static final int DEFAULT_BUFF_MOBS_STATE_TRIM_FACTOR = 4;
+    public static final int MIN_BUFF_MOBS_STATE_TRIM_FACTOR = 1;
+    public static final int MAX_BUFF_MOBS_STATE_TRIM_FACTOR = 16;
 
     private static boolean loaded;
     private static boolean waypointEnabled = DEFAULT_WAYPOINT_ENABLED;
@@ -43,6 +58,9 @@ public final class SpaceJoyServerConfig {
     private static boolean polymerRecipeFix = DEFAULT_POLYMER_RECIPE_FIX;
     private static boolean taczConcurrencyFix = DEFAULT_TACZ_CONCURRENCY_FIX;
     private static boolean quietDisconnectEncodeError = DEFAULT_QUIET_DISCONNECT_ENCODE_ERROR;
+    private static boolean buffMobsStateGuard = DEFAULT_BUFF_MOBS_STATE_GUARD;
+    private static int buffMobsStateLimit = DEFAULT_BUFF_MOBS_STATE_LIMIT;
+    private static int buffMobsStateTrimFactor = DEFAULT_BUFF_MOBS_STATE_TRIM_FACTOR;
     /** 客户端能不能改服务端设置（由 S2C 下发的 isOp 决定；单人默认 true）。 */
     private static boolean canEdit = true;
 
@@ -67,6 +85,10 @@ public final class SpaceJoyServerConfig {
                 polymerRecipeFix = bool(r, "polymerRecipeFix", polymerRecipeFix);
                 taczConcurrencyFix = bool(r, "taczConcurrencyFix", taczConcurrencyFix);
                 quietDisconnectEncodeError = bool(r, "quietDisconnectEncodeError", quietDisconnectEncodeError);
+                buffMobsStateGuard = bool(r, "buffMobsStateGuard", buffMobsStateGuard);
+                buffMobsStateLimit = clampLimit(intOr(r, "buffMobsStateLimit", buffMobsStateLimit));
+                buffMobsStateTrimFactor = clampFactor(
+                        intOr(r, "buffMobsStateTrimFactor", buffMobsStateTrimFactor));
             }
             Path wp = dir().resolve(WP_FILE);
             if (Files.isRegularFile(wp)) {
@@ -98,6 +120,9 @@ public final class SpaceJoyServerConfig {
             r.addProperty("polymerRecipeFix", polymerRecipeFix);
             r.addProperty("taczConcurrencyFix", taczConcurrencyFix);
             r.addProperty("quietDisconnectEncodeError", quietDisconnectEncodeError);
+            r.addProperty("buffMobsStateGuard", buffMobsStateGuard);
+            r.addProperty("buffMobsStateLimit", buffMobsStateLimit);
+            r.addProperty("buffMobsStateTrimFactor", buffMobsStateTrimFactor);
             Files.writeString(dir().resolve(FILE), GSON.toJson(r));
 
             JsonObject w = new JsonObject();
@@ -123,6 +148,21 @@ public final class SpaceJoyServerConfig {
             case "polymerRecipeFix" -> polymerRecipeFix = Boolean.parseBoolean(value);
             case "taczConcurrencyFix" -> taczConcurrencyFix = Boolean.parseBoolean(value);
             case "quietDisconnectEncodeError" -> quietDisconnectEncodeError = Boolean.parseBoolean(value);
+            case "buffMobsStateGuard" -> buffMobsStateGuard = Boolean.parseBoolean(value);
+            case "buffMobsStateLimit" -> {
+                try {
+                    buffMobsStateLimit = clampLimit(Integer.parseInt(value));
+                } catch (NumberFormatException e) {
+                    return;
+                }
+            }
+            case "buffMobsStateTrimFactor" -> {
+                try {
+                    buffMobsStateTrimFactor = clampFactor(Integer.parseInt(value));
+                } catch (NumberFormatException e) {
+                    return;
+                }
+            }
             default -> {
                 return;
             }
@@ -133,12 +173,14 @@ public final class SpaceJoyServerConfig {
     public static synchronized ConfigS2C snapshot(boolean op) {
         load();
         return new ConfigS2C(op, waypointEnabled, eliteAbilityDrop, eliteAbilityMinRarity,
-                polymerRecipeFix, taczConcurrencyFix, quietDisconnectEncodeError);
+                polymerRecipeFix, taczConcurrencyFix, quietDisconnectEncodeError,
+                buffMobsStateGuard, buffMobsStateLimit, buffMobsStateTrimFactor);
     }
 
     /** 客户端收到 S2C：把服务端的值覆盖到本地，同时记住自己有没有权限改。 */
     public static synchronized void setFromS2C(boolean edit, boolean we, boolean ead,
-                                                String rarity, boolean prf, boolean tcf, boolean qdee) {
+                                                String rarity, boolean prf, boolean tcf, boolean qdee,
+                                                boolean bsg, int bsl, int bstf) {
         loaded = true;
         canEdit = edit;
         waypointEnabled = we;
@@ -147,6 +189,9 @@ public final class SpaceJoyServerConfig {
         polymerRecipeFix = prf;
         taczConcurrencyFix = tcf;
         quietDisconnectEncodeError = qdee;
+        buffMobsStateGuard = bsg;
+        buffMobsStateLimit = clampLimit(bsl);
+        buffMobsStateTrimFactor = clampFactor(bstf);
     }
 
     public static synchronized void addWaypoint(String uuid, String dim, int x, int y, int z) {
@@ -195,6 +240,19 @@ public final class SpaceJoyServerConfig {
         return x + "|" + y + "|" + z;
     }
 
+    private static int clampLimit(int v) {
+        return Math.max(MIN_BUFF_MOBS_STATE_LIMIT, Math.min(MAX_BUFF_MOBS_STATE_LIMIT, v));
+    }
+
+    private static int clampFactor(int v) {
+        return Math.max(MIN_BUFF_MOBS_STATE_TRIM_FACTOR,
+                Math.min(MAX_BUFF_MOBS_STATE_TRIM_FACTOR, v));
+    }
+
+    private static int intOr(JsonObject r, String k, int f) {
+        return r.has(k) && r.get(k).isJsonPrimitive() ? r.get(k).getAsInt() : f;
+    }
+
     private static boolean bool(JsonObject r, String k, boolean f) {
         return r.has(k) && r.get(k).isJsonPrimitive() ? r.get(k).getAsBoolean() : f;
     }
@@ -232,6 +290,24 @@ public final class SpaceJoyServerConfig {
     public static synchronized boolean isQuietDisconnectEncodeError() {
         load();
         return quietDisconnectEncodeError;
+    }
+
+    /** BuffMobs 状态表裁剪总开关（服务端权威）。 */
+    public static synchronized boolean isBuffMobsStateGuard() {
+        load();
+        return buffMobsStateGuard;
+    }
+
+    /** 状态表保留的条目上限。 */
+    public static synchronized int getBuffMobsStateLimit() {
+        load();
+        return buffMobsStateLimit;
+    }
+
+    /** 运行期裁剪的触发倍数：表长到「上限 × 它」时一次性裁回上限。 */
+    public static synchronized int getBuffMobsStateTrimFactor() {
+        load();
+        return buffMobsStateTrimFactor;
     }
 
     public static synchronized String getEliteAbilityMinRarityName() {

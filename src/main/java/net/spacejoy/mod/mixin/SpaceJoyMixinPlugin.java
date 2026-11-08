@@ -41,6 +41,11 @@ public final class SpaceJoyMixinPlugin implements IMixinConfigPlugin {
     /** Xaero 小地图没装时，路径点登记混入连目标类都不存在，必须跳过。 */
     private static final String XAERO_WAYPOINT_MIXIN =
             "net.spacejoy.mod.mixin.xaero.XaeroWaypointSetMixin";
+    /**
+     * BuffMobs 状态表裁剪要直接读写 {@code BuffMobsWorldData} 的私有 {@code mobStates}，
+     * 没装 buffmobs 时目标类根本不存在。整包一起判，将来加同包混入不用再改这里。
+     */
+    private static final String BUFFMOBS_MIXIN_PACKAGE = "net.spacejoy.mod.mixin.buffmobs.";
 
     @Override
     public void onLoad(String mixinPackage) {
@@ -68,6 +73,9 @@ public final class SpaceJoyMixinPlugin implements IMixinConfigPlugin {
         }
         if (mixinClassName.startsWith(TACZ_MIXIN_PACKAGE)) {
             return FabricLoader.getInstance().isModLoaded("tacz");
+        }
+        if (mixinClassName.startsWith(BUFFMOBS_MIXIN_PACKAGE)) {
+            return FabricLoader.getInstance().isModLoaded("buffmobs");
         }
         return true;
     }

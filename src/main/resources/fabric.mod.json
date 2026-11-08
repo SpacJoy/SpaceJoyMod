@@ -30,7 +30,8 @@
       "config": "spacejoy_mod.compat.mixins.json",
       "environment": "client"
     },
-    "spacejoy_mod.tacz.mixins.json"
+    "spacejoy_mod.tacz.mixins.json",
+    "spacejoy_mod.buffmobs.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.19.5",

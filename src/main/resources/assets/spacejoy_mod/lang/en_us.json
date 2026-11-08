@@ -80,7 +80,10 @@
   "spacejoy_mod.config.missing.polymer": "polymer-core is not installed, so the recipe fix has nothing to patch.",
   "spacejoy_mod.config.missing.tacz": "TaCZ is not installed, so the concurrency fix has nothing to patch.",
   "spacejoy_mod.config.mobLabel": "Show ability labels above mobs",
-  "spacejoy_mod.config.mobLabel.tip": "Show what a mob can drop above its head, rendered through the vanilla name tag path so blocks occlude it naturally. If the mob is already named, the label moves to the line above. Client side only.",
+  "spacejoy_mod.config.mobLabelDistance": "Label view distance",
+  "spacejoy_mod.config.mobLabelDistance.tip": "How close you must be for the label to render. Defaults to 10 blocks, matching the vanilla line below the name (the scoreboard BELOW_NAME slot); the 64-block name tag range is a separate slot the label never occupies. Client side only, takes effect immediately.",
+  "spacejoy_mod.config.mobLabelDistance.value": "%s blocks",
+  "spacejoy_mod.config.mobLabel.tip": "Shows what a mob can drop above its head, rendered through the vanilla name tag path so occlusion and shaders work out of the box. The label always goes in the line below the name (the same slot the scoreboard BELOW_NAME uses), never in the name slot itself: a mob with a name tag keeps its name on top with the label underneath, and an unnamed mob gets its label exactly where the name would have been. No mob name is ever modified. Yields to the scoreboard when that line is taken. Client side only.",
   "spacejoy_mod.config.offhandTorchGuard": "Keep torches in the off hand",
   "spacejoy_mod.config.offhandTorchGuard.tip": "Stop placing torches from the off hand once the stack is down to the keep count, so you never run out of light. Only light-emitting torches count (torch, soul torch, copper torch); redstone torches are untouched. Client-side only, works the same on a server.",
   "spacejoy_mod.config.offhandTorchKeepCount": "Keep count",
@@ -235,5 +238,14 @@
   "spacejoy_mod.config.waypointTeleport.tip": "When on, waypoints a player creates on the Xaero map are registered with the server, and 'Teleport to waypoint' works for non-OP players. Turning it off disables both registration and teleport. Only registered coordinates are accepted. Requires the client to set the minimap teleport command to /sjwp {x} {y} {z}.",
   "spacejoy_mod.config.server.requiresOp": "Editing these settings requires operator (OP) permission.",
   "spacejoy_mod.config.quietDisconnectEncodeError": "Silence disconnect-packet encode errors",
-  "spacejoy_mod.config.quietDisconnectEncodeError.tip": "When a player drops unexpectedly the server tries to send one last disconnect packet. If that connection is no longer in the play protocol, encoding it fails and the console gets a long ERROR stack (Sending unknown packet 'clientbound/minecraft:disconnect'). This option only suppresses that single log line: the packet is still sent and the disconnect flow is unchanged, and errors for every other packet still show up."
+  "spacejoy_mod.config.quietDisconnectEncodeError.tip": "When a player drops unexpectedly the server tries to send one last disconnect packet. If that connection is no longer in the play protocol, encoding it fails and the console gets a long ERROR stack (Sending unknown packet 'clientbound/minecraft:disconnect'). This option only suppresses that single log line: the packet is still sent and the disconnect flow is unchanged, and errors for every other packet still show up.",
+  "spacejoy_mod.config.buffMobsStateGuard": "BuffMobs state table trimming",
+  "spacejoy_mod.config.buffMobsStateGuard.tip": "BuffMobs keeps a state record per mob and only drops it when the mob dies, so the table only grows. With ~19,700 entries, every cold start spends over 60 seconds decoding it and the server watchdog kills the process. This trims the table to the limit below before the world opens, and re-checks every 10 seconds while running. Mobs named with a name tag are never touched (their UUIDs are registered on load and skipped in both passes). The first trim leaves a world_data.dat.sjbak next to the file.",
+  "spacejoy_mod.config.buffMobsStateLimit": "State table entry limit",
+  "spacejoy_mod.config.buffMobsStateLimit.value": "%s entries",
+  "spacejoy_mod.config.buffMobsStateLimit.tip": "Keep at most this many entries. Overflow is removed starting with pure placeholder records (only the \"evaluated\" flags set), then records left over from summons, blood moons or cooldowns. Elite, trait and armor-slot entries are never removed. 6,000 entries cost roughly 0.05 s of insertion, while 19,747 already cost over 0.5 s before any decoding happens.",
+  "spacejoy_mod.config.buffMobsStateTrimFactor": "Runtime trim trigger (multiple of the limit)",
+  "spacejoy_mod.config.buffMobsStateTrimFactor.value": "%sx the limit",
+  "spacejoy_mod.config.buffMobsStateTrimFactor.tip": "While running, the table is not trimmed the moment it passes the limit. It grows until it reaches limit x this factor, then gets cut back down to the limit in one pass. Trimming a dozen entries right at the limit logged a line every 10 seconds and kept the table pinned to the edge; one bigger pass every few thousand entries is quieter and cheaper. Set it to 1 for the old behaviour. The runtime pass still trims all the way down to the entry limit, never stopping at the multiple.",
+  "spacejoy_mod.config.missing.buffmobsStateGuard": "BuffMobs is not installed, so there is no state table to trim."
 }

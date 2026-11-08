@@ -31,7 +31,8 @@ public final class SpaceJoyClientNetwork {
             SpaceJoyServerConfig.setFromS2C(edit, payload.waypointEnabled(),
                     payload.eliteAbilityDrop(), payload.eliteAbilityMinRarity(),
                     payload.polymerRecipeFix(), payload.taczConcurrencyFix(),
-                    payload.quietDisconnectEncodeError());
+                    payload.quietDisconnectEncodeError(), payload.buffMobsStateGuard(),
+                    payload.buffMobsStateLimit(), payload.buffMobsStateTrimFactor());
             if (changed) {
                 // 权限变了：界面开着的话重建一次，让置灰状态立刻跟上，不用关掉重开。
                 // 必须在客户端线程改界面，收包是在网络线程。

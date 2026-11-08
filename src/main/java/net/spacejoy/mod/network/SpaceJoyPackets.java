@@ -14,7 +14,9 @@ public final class SpaceJoyPackets {
     public record ConfigS2C(boolean canEdit, boolean waypointEnabled,
                             boolean eliteAbilityDrop, String eliteAbilityMinRarity,
                             boolean polymerRecipeFix, boolean taczConcurrencyFix,
-                            boolean quietDisconnectEncodeError)
+                            boolean quietDisconnectEncodeError,
+                            boolean buffMobsStateGuard, int buffMobsStateLimit,
+                            int buffMobsStateTrimFactor)
             implements CustomPacketPayload {
         public static final Type<ConfigS2C> TYPE =
                 new Type<>(Identifier.fromNamespaceAndPath("spacejoy_mod", "config_s2c"));
@@ -28,9 +30,13 @@ public final class SpaceJoyPackets {
                             buf.writeBoolean(p.polymerRecipeFix);
                             buf.writeBoolean(p.taczConcurrencyFix);
                             buf.writeBoolean(p.quietDisconnectEncodeError);
+                            buf.writeBoolean(p.buffMobsStateGuard);
+                            buf.writeVarInt(p.buffMobsStateLimit);
+                            buf.writeVarInt(p.buffMobsStateTrimFactor);
                         },
                         buf -> new ConfigS2C(buf.readBoolean(), buf.readBoolean(), buf.readBoolean(),
-                                buf.readUtf(), buf.readBoolean(), buf.readBoolean(), buf.readBoolean()));
+                                buf.readUtf(), buf.readBoolean(), buf.readBoolean(), buf.readBoolean(),
+                                buf.readBoolean(), buf.readVarInt(), buf.readVarInt()));
 
         @Override
         public Type<ConfigS2C> type() {

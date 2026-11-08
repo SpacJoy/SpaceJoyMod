@@ -80,7 +80,10 @@
   "spacejoy_mod.config.missing.polymer": "没装 polymer-core，配方修复没有可修补的对象。",
   "spacejoy_mod.config.missing.tacz": "没装 TaCZ，并发修复没有可修补的对象。",
   "spacejoy_mod.config.mobLabel": "给带能力的生物加头顶标签",
-  "spacejoy_mod.config.mobLabel.tip": "在带能力掉落的生物头顶显示它能掉什么，和命名牌一样走原版渲染，隔着方块自然被挡住。生物已经有自定义名时，标签自动挪到名字上面一行。纯客户端。",
+  "spacejoy_mod.config.mobLabelDistance": "标签可见距离",
+  "spacejoy_mod.config.mobLabelDistance.tip": "多远以内才画头顶标签。默认 10 格，和原版名字下方那一行（计分板「名字下方」）的距离一致；名字栏的 64 格是另一回事，标签不占那一格。纯客户端，改完立刻生效。",
+  "spacejoy_mod.config.mobLabelDistance.value": "%s 格",
+  "spacejoy_mod.config.mobLabel.tip": "在带能力掉落的生物头顶显示它能掉什么，和命名牌一样走原版渲染，隔着方块自然被挡住。标签固定挂在名字下方那一行（计分板「名字下方」用的同一格），不占名字的位置：有命名牌名字的生物就是名字在上、标签在下，没名字的标签正好落在名字本该在的地方，任何生物的名字都不改。计分板占着那一格时让给计分板。纯客户端。",
   "spacejoy_mod.config.offhandTorchGuard": "副手火把保留",
   "spacejoy_mod.config.offhandTorchGuard.tip": "副手那摞火把剩到保留数时，就不许再从副手放置，永远留一手照明。只认火把、灵魂火把、铜火把这类照明火把；红石火把不受影响。纯客户端功能，进服也一致。",
   "spacejoy_mod.config.offhandTorchKeepCount": "保留数量",
@@ -235,5 +238,14 @@
   "spacejoy_mod.config.waypointTeleport.tip": "开启后，玩家在 Xaero 地图上创建的正式路径点会登记到服务端，点「传送到路径点」即可非 OP 传送。关闭时登记与传送一起失效。只认登记过的坐标，非 OP 手敲任意坐标传不了；大地图右键任意位置传送不受此项控制。需客户端把小地图传送命令设为 /sjwp {x} {y} {z}。",
   "spacejoy_mod.config.server.requiresOp": "修改这些设置需要管理员权限（OP）。",
   "spacejoy_mod.config.quietDisconnectEncodeError": "静音断线包编码报错",
-  "spacejoy_mod.config.quietDisconnectEncodeError.tip": "开启后，服务端在玩家异常断开时会尝试补发一个 disconnect 包；如果这条连接已经不在 play 协议下，编码会失败并在控制台刷一大段 ERROR 堆栈（Sending unknown packet 'clientbound/minecraft:disconnect'）。这个开关只在日志层拦掉这一条，发包行为和断开流程完全不变，其它包的错误照常输出。"
+  "spacejoy_mod.config.quietDisconnectEncodeError.tip": "开启后，服务端在玩家异常断开时会尝试补发一个 disconnect 包；如果这条连接已经不在 play 协议下，编码会失败并在控制台刷一大段 ERROR 堆栈（Sending unknown packet 'clientbound/minecraft:disconnect'）。这个开关只在日志层拦掉这一条，发包行为和断开流程完全不变，其它包的错误照常输出。",
+  "spacejoy_mod.config.buffMobsStateGuard": "BuffMobs 状态表裁剪",
+  "spacejoy_mod.config.buffMobsStateGuard.tip": "BuffMobs 给每只生物存一份状态，只在生物死亡时删，条目只涨不降。一万九千多条的存档实测每次冷启动都要在解码上卡满 60 秒，被服务端 Watchdog 判成卡死直接强杀。这项在开服前把状态表裁到下面的上限内，运行中也每 10 秒检查一次。被命名牌命名过的生物一律不动（启动时先登记它们的 UUID，裁剪时整批跳过）。首次裁剪会在旁边留一份 world_data.dat.sjbak。",
+  "spacejoy_mod.config.buffMobsStateLimit": "状态表条目上限",
+  "spacejoy_mod.config.buffMobsStateLimit.value": "%s 条",
+  "spacejoy_mod.config.buffMobsStateLimit.tip": "状态表最多留这么多条。超出时先删「只有已评估标记、没有任何身份信息」的占位记录，再删只留了召唤/血月/冷却痕迹的；精英、带词条、带护甲槽位的一律不动。6000 条对应约 0.05 秒的解码开销，19747 条时是 0.5 秒以上的纯插入代价，实际解码还要更久。",
+  "spacejoy_mod.config.buffMobsStateTrimFactor": "运行期裁剪触发倍数",
+  "spacejoy_mod.config.buffMobsStateTrimFactor.value": "上限的 %s 倍",
+  "spacejoy_mod.config.buffMobsStateTrimFactor.tip": "运行中不再一过上限就裁，而是等表涨到「上限 × 这个倍数」再一次性裁回上限。贴着上限裁十来条会让日志每 10 秒刷一行、表长期卡在临界点；攒够一批再裁，一次就裁掉几千条。调到 1 就是旧行为（一过上限就裁）。运行期裁剪本身仍然会把表裁到上面那个上限，不会停在上限的倍数上。",
+  "spacejoy_mod.config.missing.buffmobsStateGuard": "没装 BuffMobs，没有状态表可以裁剪。"
 }
