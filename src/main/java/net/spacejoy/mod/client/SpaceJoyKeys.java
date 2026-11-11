@@ -80,6 +80,23 @@ public final class SpaceJoyKeys implements ClientModInitializer {
         }
     }
 
+    /**
+     * 把所有按键恢复成注册时写的默认键，并立刻落盘。
+     *
+     * <p>逐项走 {@link #applyKey} 而不是直接改 {@code options.txt}：每一项都要经过
+     * {@link KeyMapping#resetMapping()} 才会登记进内部映射表，跳过它等于改了个不生效的字段。
+     * 全部改完只存一次盘 —— {@code applyKey} 自己也存，这里再存一次是幂等的，
+     * 但主配置界面的「保存」按钮还会再触发一轮，所以这点开销无所谓。
+     */
+    public static void resetAllToDefault() {
+        for (KeyMapping mapping : allMappings()) {
+            if (mapping == null) {
+                continue;
+            }
+            applyKey(mapping, mapping.getDefaultKey());
+        }
+    }
+
     @Override
     public void onInitializeClient() {
         KeyMapping.Category category = KeyMapping.Category.register(

@@ -24,7 +24,7 @@ import net.spacejoy.mod.irisdim.config.ModConfig;
 /**
  * ModMenu 里的配置界面，用 Cloth Config 的现成模板。
  *
- * <p>按用途分成五个标签页：通用 / 修复 / 功能 / 联动 / 维度光影。
+ * <p>按用途分成六个标签页：通用 / 玩法 / 快捷键 / 兼容 / 服务端 / 维度光影。
  *
  * <p><b>缺依赖就置灰</b>：某个功能需要的前置没装时，对应的开关会被设成不可编辑而不是直接隐藏，
  * 这样玩家能看到「有这么个功能、为什么用不了」，而不是对着一个空页面猜。页面本身也保留，
@@ -73,20 +73,22 @@ public final class SpaceJoyConfigScreen {
                 });
         ConfigEntryBuilder eb = builder.entryBuilder();
 
-        // 五个标签页，而不是按「通用/修复/操作/快捷键/功能/联动」一人一页那样摊成八个：
-        // 每一页原本平均只有两三项，切来切去比滚动更费事。
-        //   - 通用：总开关、日志、界面与聊天这类纯显示偏好，末尾附快捷键
+        // 六个标签页。快捷键单独占一页：它改的是原版 KeyMapping（和「选项 → 控制 → 按键绑定」
+        // 是同一份数据），语义上不属于「模组设置」，混在通用页里既容易误触也不好找。
+        //   - 通用：总开关、日志、界面与聊天这类纯显示偏好
         //   - 玩法：移动/建造/外观/装备/旁观这些真正改操作的开关
+        //   - 快捷键：本模组按键的改绑与重置
         //   - 兼容：模组之间的修复与联动，都带「前置没装就置灰」的判定
         //   - 服务端：专用服务器上才生效的那份，非 OP 整页置灰
         //   - 维度光影：自带规则编辑器，且前置缺失时整页内容都会消失，单独留着
         ConfigCategory general = builder.getOrCreateCategory(Component.translatable(K + "tab.general"));
         buildGeneral(general, eb);
-        buildKeys(general, eb);
 
         ConfigCategory gameplay = builder.getOrCreateCategory(Component.translatable(K + "tab.gameplay"));
         buildTweaks(gameplay, eb);
         buildFeatures(gameplay, eb, ea, jade);
+
+        buildKeys(builder.getOrCreateCategory(Component.translatable(K + "tab.keys")), eb);
 
         ConfigCategory compat = builder.getOrCreateCategory(Component.translatable(K + "tab.compat"));
         buildFixes(compat, eb, iris);
@@ -361,23 +363,59 @@ public final class SpaceJoyConfigScreen {
      *
      * <p>改动写回的是原版 {@link net.minecraft.client.KeyMapping}，所以和「选项 → 控制 → 按键绑定」
      * 里那一份是同一套数据，两边随便改哪边都同步；保存时一并写进 {@code options.txt}。
+     *
+     * <p>单独占一页之后不再需要分区小标题 —— 整页都是快捷键，标题只会重复一遍页签名字。
+     * 顶部的说明压成一句：这里和原版按键界面共用同一份数据，改哪个都一样。
      */
     private static void buildKeys(ConfigCategory category, ConfigEntryBuilder eb) {
-        // 合并进通用页后，这一组要靠小标题和自己的提示语跟上面的显示偏好分开。
-        category.addEntry(section(eb, K + "section.keys"));
         category.addEntry(note(eb, K + "keys.hint"));
 
-        for (net.minecraft.client.KeyMapping mapping : net.spacejoy.mod.client.SpaceJoyKeys.allMappings()) {
+        java.util.List<net.minecraft.client.KeyMapping> mappings =
+                net.spacejoy.mod.client.SpaceJoyKeys.allMappings();
+        // 每一项都留一份引用：页尾的「恢复默认」要把它们的新值直接写回条目。
+        java.util.List<me.shedaniel.clothconfig2.gui.entries.KeyCodeEntry> fields =
+                new java.util.ArrayList<>();
+        for (net.minecraft.client.KeyMapping mapping : mappings) {
             if (mapping == null) {
                 continue;
             }
-            category.addEntry(eb.startKeyCodeField(
+            me.shedaniel.clothconfig2.gui.entries.KeyCodeEntry entry = eb.startKeyCodeField(
                             Component.translatable(mapping.getName()), mapping.key)
                     // 原版 KeyMapping 不支持组合键，开了只会存下一个用不上的值。
                     .setAllowModifiers(false)
                     .setKeySaveConsumer(key -> net.spacejoy.mod.client.SpaceJoyKeys.applyKey(mapping, key))
                     .setDefaultValue(mapping.getDefaultKey())
-                    .build());
+                    .build();
+            fields.add(entry);
+            category.addEntry(entry);
+        }
+
+        // 全局重置：几项一起改错时不用逐个点回来。放在页尾，和上面每一项自己的「重置」按钮
+        // 不冲突 —— Cloth 那个只还原单项，这个把三项一起恢复默认。
+        //
+        // 用「点击即执行」的条目而不是布尔开关：它是一次性动作，做成开关会留下一个
+        // 永远显示为「开」的状态。
+        //
+        // 恢复后原地把新值写回每个输入框，不重建界面：重建会顺带丢掉其它页还没保存的改动，
+        // 而「恢复默认键位」不该有这种副作用。
+        category.addEntry(new ScreenLinkEntry(
+                Component.translatable(K + "keys.resetAll"),
+                Component.translatable(K + "keys.resetAll.button"),
+                () -> resetAllKeys(mappings, fields),
+                Component.translatable(K + "keys.resetAll.tip")));
+    }
+
+    /** 把所有按键恢复默认，并刷新页面上的输入框。见 {@code buildKeys} 里的说明。 */
+    private static void resetAllKeys(java.util.List<net.minecraft.client.KeyMapping> mappings,
+                                     java.util.List<me.shedaniel.clothconfig2.gui.entries.KeyCodeEntry> fields) {
+        net.spacejoy.mod.client.SpaceJoyKeys.resetAllToDefault();
+        for (int i = 0; i < mappings.size() && i < fields.size(); i++) {
+            net.minecraft.client.KeyMapping mapping = mappings.get(i);
+            if (mapping == null) {
+                continue;
+            }
+            fields.get(i).setValue(me.shedaniel.clothconfig2.api.ModifierKeyCode.of(
+                    mapping.getDefaultKey(), me.shedaniel.clothconfig2.api.Modifier.none()));
         }
     }
 
