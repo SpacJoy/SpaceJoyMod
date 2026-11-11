@@ -4,6 +4,23 @@
 
 ***
 
+# V0.19.0 (2026-11-12)
+
+**新增「隐藏 ProjectEF 盔甲」开关，配置页从 8 页合并为 5 页**\
+Full Changelog (相对于 0.18.0): [https://github.com/SpacJoy/SpaceJoyMod/compare/v0.18.0...v0.19.0](https://github.com/SpacJoy/SpaceJoyMod/compare/v0.18.0...v0.19.0)
+
+## ✨ 隐藏 ProjectEF 盔甲
+
+- **穿上 PE 盔甲但看起来像没穿**：暗物质、红物质、飓风长靴这些不再渲染，装备槽、减伤、附魔、飞行全部照旧——只拦渲染状态，不碰物品本身。注入点选在 `HumanoidMobRenderer#getEquipmentIfRenderable`，26.3 把装备渲染收拢成了渲染状态，这个方法是「哪件装备进画面」的唯一收敛点；玩家渲染器 `AvatarRenderer` 走的是同一个 `extractHumanoidRenderState`，所以不用再给玩家单独挂一份。
+- **只认自己、只认 ProjectEF**：判定放在 `ProjectEArmor#shouldHide(entity, stack, slot)`，用 `entity != Minecraft.getInstance().player` 排除其他玩家，按物品命名空间是否为 `projecte` 认模组，别的模组盔甲不受影响。不 import ProjectEF 的任何类——SpaceJoyMod 对它是软依赖，写死类引用会让没装它的实例在加载期就炸；命名空间判定也顺带覆盖上游以后新增的盔甲件。
+- **默认关闭**，开关在 ModMenu 配置界面「玩法 → 外观」下，配置文件键 `hideProjectEArmor`。
+
+## 🛠️ 配置页重新分页
+
+- **八个标签页合并成五个**：原来是「通用/修复/操作增强/快捷键/功能/联动/服务端/维度光影」一人一页，平均每页只有两三项，切页比滚动更费事。现在按用途归成通用（含快捷键）、玩法、兼容（修复+联动）、服务端、维度光影，各段之间用小标题分隔。维度光影仍单独留着：它自带自绘的规则编辑器，且前置缺失时整页内容都会消失。
+- 同步删掉 `tab.features`/`tab.fixes`/`tab.integration`/`tab.keys`/`tab.tweaks` 五个不再使用的语言键，新增 `tab.gameplay`/`tab.compat` 与四个分区键。
+
+
 # V0.18.0 (2026-11-08)
 
 **新增「BuffMobs 状态表裁剪」，修掉条目涨到上万后每次冷启动必被 Watchdog 强杀的问题**\

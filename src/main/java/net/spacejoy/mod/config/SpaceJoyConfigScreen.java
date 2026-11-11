@@ -73,12 +73,25 @@ public final class SpaceJoyConfigScreen {
                 });
         ConfigEntryBuilder eb = builder.entryBuilder();
 
-        buildGeneral(builder.getOrCreateCategory(Component.translatable(K + "tab.general")), eb);
-        buildFixes(builder.getOrCreateCategory(Component.translatable(K + "tab.fixes")), eb, iris);
-        buildTweaks(builder.getOrCreateCategory(Component.translatable(K + "tab.tweaks")), eb);
-        buildKeys(builder.getOrCreateCategory(Component.translatable(K + "tab.keys")), eb);
-        buildFeatures(builder.getOrCreateCategory(Component.translatable(K + "tab.features")), eb, ea, jade);
-        buildIntegration(builder.getOrCreateCategory(Component.translatable(K + "tab.integration")), eb, ea);
+        // 五个标签页，而不是按「通用/修复/操作/快捷键/功能/联动」一人一页那样摊成八个：
+        // 每一页原本平均只有两三项，切来切去比滚动更费事。
+        //   - 通用：总开关、日志、界面与聊天这类纯显示偏好，末尾附快捷键
+        //   - 玩法：移动/建造/外观/装备/旁观这些真正改操作的开关
+        //   - 兼容：模组之间的修复与联动，都带「前置没装就置灰」的判定
+        //   - 服务端：专用服务器上才生效的那份，非 OP 整页置灰
+        //   - 维度光影：自带规则编辑器，且前置缺失时整页内容都会消失，单独留着
+        ConfigCategory general = builder.getOrCreateCategory(Component.translatable(K + "tab.general"));
+        buildGeneral(general, eb);
+        buildKeys(general, eb);
+
+        ConfigCategory gameplay = builder.getOrCreateCategory(Component.translatable(K + "tab.gameplay"));
+        buildTweaks(gameplay, eb);
+        buildFeatures(gameplay, eb, ea, jade);
+
+        ConfigCategory compat = builder.getOrCreateCategory(Component.translatable(K + "tab.compat"));
+        buildFixes(compat, eb, iris);
+        buildIntegration(compat, eb, ea);
+
         buildServer(builder.getOrCreateCategory(Component.translatable(K + "tab.server")), eb);
         buildIris(builder.getOrCreateCategory(Component.translatable(K + "tab.iris")), eb, iris, parent);
 
@@ -191,6 +204,8 @@ public final class SpaceJoyConfigScreen {
     // -------------------------------------------------------------------------------------
 
     private static void buildFixes(ConfigCategory category, ConfigEntryBuilder eb, boolean iris) {
+        // 合并进「兼容」页后，先说明这一段是修 bug，下面那一段才是联动玩法。
+        category.addEntry(section(eb, K + "section.fix"));
         boolean polymer = CompatFlags.POLYMER_LOADED;
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "polymerRecipeFix"),
@@ -322,6 +337,14 @@ public final class SpaceJoyConfigScreen {
                 .setTooltip(Component.translatable(K + "angelBlockPlacementDistance.tip"))
                 .build());
 
+        // ---- 外观 ----
+        category.addEntry(section(eb, K + "section.appearance"));
+        // 纯客户端渲染开关，不引用 ProjectEF 的类，所以没装那个模组也不置灰：
+        // 打开后只是没有任何物品会被这条规则命中，不会出错。
+        category.addEntry(toggle(eb, K + "hideProjectEArmor",
+                SpaceJoyConfig.isHideProjectEArmor(),
+                SpaceJoyConfig.DEFAULT_HIDE_PROJECTE_ARMOR,
+                SpaceJoyConfig::setHideProjectEArmor, K + "hideProjectEArmor.tip"));
     }
 
     /** 分区小标题：只做视觉分隔，不加折叠。 */
@@ -340,6 +363,8 @@ public final class SpaceJoyConfigScreen {
      * 里那一份是同一套数据，两边随便改哪边都同步；保存时一并写进 {@code options.txt}。
      */
     private static void buildKeys(ConfigCategory category, ConfigEntryBuilder eb) {
+        // 合并进通用页后，这一组要靠小标题和自己的提示语跟上面的显示偏好分开。
+        category.addEntry(section(eb, K + "section.keys"));
         category.addEntry(note(eb, K + "keys.hint"));
 
         for (net.minecraft.client.KeyMapping mapping : net.spacejoy.mod.client.SpaceJoyKeys.allMappings()) {
@@ -362,6 +387,8 @@ public final class SpaceJoyConfigScreen {
 
     private static void buildFeatures(ConfigCategory category, ConfigEntryBuilder eb,
                                       boolean ea, boolean jade) {
+        // ---- 生物信息 ----
+        category.addEntry(section(eb, K + "section.mobInfo"));
         boolean jadeOk = jade && ea;
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "jadeAbilityDisplay"),
@@ -452,6 +479,8 @@ public final class SpaceJoyConfigScreen {
         boolean buffMobs = CompatFlags.BUFFMOBS_LOADED;
         boolean ok = ea && buffMobs;
 
+        // 上面是「修别人的 bug」，这里是「两个模组配合起来的玩法」，合并成一页后要分开。
+        category.addEntry(section(eb, K + "section.elite"));
         category.addEntry(gate(eb.startBooleanToggle(
                         Component.translatable(K + "eliteAbilityDrop"),
                         SpaceJoyServerConfig.isEliteAbilityDrop())

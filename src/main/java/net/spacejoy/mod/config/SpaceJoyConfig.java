@@ -72,6 +72,8 @@ public final class SpaceJoyConfig {
     public static final boolean DEFAULT_SPECTATOR_TELEPORT = false;
     public static final boolean DEFAULT_RECIPE_BOOK_SCROLL = true;
     public static final boolean DEFAULT_CHAT_HISTORY = true;
+    /** 隐藏 ProjectEF 盔甲：纯客户端渲染开关，默认关。 */
+    public static final boolean DEFAULT_HIDE_PROJECTE_ARMOR = false;
     /** 聊天记录上限的默认值：与原 More Chat History 的 16384 一致。 */
     public static final int DEFAULT_CHAT_HISTORY_LENGTH = 16384;
     /** 下限就是原版自己的 100，再小等于把记录砍到比原版还短，没有意义。 */
@@ -139,6 +141,9 @@ public final class SpaceJoyConfig {
     private static boolean chatHistory = DEFAULT_CHAT_HISTORY;
     private static int chatHistoryLength = DEFAULT_CHAT_HISTORY_LENGTH;
 
+    // ---- 隐藏 ProjectEF 盔甲 ----
+    private static boolean hideProjectEArmor = DEFAULT_HIDE_PROJECTE_ARMOR;
+
     private SpaceJoyConfig() {
     }
 
@@ -183,6 +188,7 @@ public final class SpaceJoyConfig {
             recipeBookScroll = readBool(root, "recipeBookScroll", recipeBookScroll);
             chatHistory = readBool(root, "chatHistory", chatHistory);
             chatHistoryLength = clampChatHistory(readInt(root, "chatHistoryLength", chatHistoryLength));
+            hideProjectEArmor = readBool(root, "hideProjectEArmor", hideProjectEArmor);
         } catch (Exception e) {
             // 配置文件坏了就退回默认值，不要让模组起不来。
             SpaceJoyMod.LOGGER.warn("spacejoy-mod config unreadable, using defaults", e);
@@ -220,6 +226,7 @@ public final class SpaceJoyConfig {
         root.addProperty("recipeBookScroll", recipeBookScroll);
         root.addProperty("chatHistory", chatHistory);
         root.addProperty("chatHistoryLength", chatHistoryLength);
+        root.addProperty("hideProjectEArmor", hideProjectEArmor);
         try {
             Files.createDirectories(path().getParent());
             Files.writeString(path(), GSON.toJson(root));
@@ -616,5 +623,21 @@ public final class SpaceJoyConfig {
     public static void setChatHistoryLength(int value) {
         ensureLoaded();
         chatHistoryLength = clampChatHistory(value);
+    }
+
+    /**
+     * 功能：不渲染 ProjectEF 的盔甲。
+     *
+     * <p>纯客户端，只影响自己看到的画面，不改装备槽里的东西，也不影响减伤计算。
+     * 判定按物品命名空间是否为 {@code projecte}，其它模组的盔甲不受影响。
+     */
+    public static boolean isHideProjectEArmor() {
+        ensureLoaded();
+        return enabled && hideProjectEArmor;
+    }
+
+    public static void setHideProjectEArmor(boolean value) {
+        ensureLoaded();
+        hideProjectEArmor = value;
     }
 }
